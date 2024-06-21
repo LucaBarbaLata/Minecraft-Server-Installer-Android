@@ -1,1 +1,1 @@
-# Minecraft-Server-Installer-Android
+# Minecraft-Server-Installer-Android-Termux
