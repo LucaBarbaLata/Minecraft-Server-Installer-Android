@@ -18,7 +18,7 @@ while true; do
     case "$consent" in
         yes) break ;;
         no) echo -e "${RED}You did not accept the terms. Exiting...${NC}"; exit 1 ;;
-        *) echo -e "${RED}Invalid input. Please type 'yes' or 'no'.${NC}"; sleep 1 ;;
+        *) echo -e "${RED}Invalid input. Please type 'yes' or 'no'.${NC}"; sleep 2 ;;
     esac
 done
 
@@ -32,7 +32,7 @@ while true; do
     case "$server_software" in
         1) software="Paper"; version="1.20.1"; break ;;
         2) software="Vanilla"; version="1.20.1"; break ;;
-        *) echo -e "${RED}Invalid selection. Please choose again.${NC}"; sleep 1 ;;
+        *) echo -e "${RED}Invalid selection. Please choose again.${NC}"; sleep 2 ;;
     esac
 done
 
@@ -51,7 +51,7 @@ while true; do
     case "$confirm" in
         yes) break ;;
         no) continue ;;
-        *) echo -e "${RED}Invalid input, please type 'yes' or 'no'.${NC}"; sleep 1 ;;
+        *) echo -e "${RED}Invalid input, please type 'yes' or 'no'.${NC}"; sleep 2 ;;
     esac
 done
 
