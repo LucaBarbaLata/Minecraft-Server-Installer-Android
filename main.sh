@@ -27,23 +27,26 @@ while true; do
         2) software="Vanilla"; version="1.20.1" ;;
         *) echo -e "${RED}Invalid selection. Please choose again.${NC}"; sleep 2; continue ;;
     esac
-    echo -e "${YELLOW}==============================${NC}"
-    echo -e "${YELLOW}BUILD CONFIGURATION${NC}"
-    echo -e "${YELLOW}==============================${NC}"
-    echo -e "💻 Software: ${GREEN}$software${NC}"
-    echo -e "📅 Version: ${GREEN}$version${NC}"
-    echo -e "---------------------------------------------------"
-    read -r -p "Is this information correct? (yes/no): " confirm
-    confirm="$(echo "$confirm" | xargs | tr '[:upper:]' '[:lower:]')"
-    if [[ "$confirm" == "yes" ]]; then
-        break
-    elif [[ "$confirm" == "no" ]]; then
-        echo -e "${RED}Reconfiguring selection...${NC}"
-        sleep 1
-    else
-        echo -e "${RED}Invalid input, please type 'yes' or 'no'.${NC}"
-        sleep 2
-    fi
+    while true; do
+        echo -e "${YELLOW}==============================${NC}"
+        echo -e "${YELLOW}BUILD CONFIGURATION${NC}"
+        echo -e "${YELLOW}==============================${NC}"
+        echo -e "💻 Software: ${GREEN}$software${NC}"
+        echo -e "📅 Version: ${GREEN}$version${NC}"
+        echo -e "---------------------------------------------------"
+        read -r -p "Is this information correct? (yes/no): " confirm
+        confirm="$(echo "$confirm" | xargs | tr '[:upper:]' '[:lower:]')"
+        if [[ "$confirm" == "yes" ]]; then
+            break 2
+        elif [[ "$confirm" == "no" ]]; then
+            echo -e "${RED}Reconfiguring selection...${NC}"
+            sleep 1
+            break
+        else
+            echo -e "${RED}Invalid input, please type 'yes' or 'no'.${NC}"
+            sleep 2
+        fi
+    done
 done
 clear
 echo -e "${BLUE}Updating system and installing dependencies...${NC}"
