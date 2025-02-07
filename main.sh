@@ -1,6 +1,3 @@
-În regulă, să adăugăm câteva mesaje de depanare pentru a identifica exact unde apare problema. Acest lucru ne va ajuta să înțelegem mai bine ce se întâmplă:
-
-```bash
 #!/bin/bash
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -81,6 +78,3 @@ echo -e "${GREEN}Installation completed successfully!${NC}"
 echo -e "Run your server with: ${YELLOW}./start.sh${NC}"
 echo -e "Listing server directory contents:"
 ls -la
-```
-
-Încearcă să rulezi acest script modificat și spune-mi ce mesaje de depanare apar. Aceste mesaje vor ajuta să identificăm exact unde este problema și să găsim o soluție.
