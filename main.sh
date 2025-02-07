@@ -1,31 +1,38 @@
 #!/bin/bash
 
+# Enable colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
+clear
+
 echo -e "${YELLOW}Welcome to the Minecraft Server Installer!${NC}"
 echo -e "This script is open-source and licensed under the MIT License."
 echo -e "GitHub Repository: ${BLUE}https://github.com/LucaBarbaLata/Minecraft-Server-Installer-Android${NC}\n"
-read -p "Do you agree to continue? (yes/no): " consent
-if [[ "$consent" != "yes" ]]; then
-    echo -e "${RED}You did not accept the terms. Exiting...${NC}"
-    exit 1
-fi
-
 
 while true; do
+    read -p "Do you agree to continue? (yes/no): " consent
+    case "$consent" in
+        yes) break ;;
+        no) echo -e "${RED}You did not accept the terms. Exiting...${NC}"; exit 1 ;;
+        *) echo -e "${RED}Invalid input. Please type 'yes' or 'no'.${NC}" ;;
+    esac
+done
+
+while true; do
+    clear
     echo -e "${GREEN}Choose your server software:${NC}"
     echo "[1] Paper"
     echo "[2] Vanilla"
     read -p "Enter the option (1 or 2): " server_software
 
-    case $server_software in
-        1) software="Paper"; version="1.20.1"; break;;
-        2) software="Vanilla"; version="1.20.1"; break;;
-        *) echo -e "${RED}Invalid selection. Please choose again.${NC}";;
+    case "$server_software" in
+        1) software="Paper"; version="1.20.1"; break ;;
+        2) software="Vanilla"; version="1.20.1"; break ;;
+        *) echo -e "${RED}Invalid selection. Please choose again.${NC}" ;;
     esac
 done
 
@@ -40,34 +47,34 @@ while true; do
     echo -e "Is this information correct?"
     echo -e "${YELLOW}|| Yes ||                  || No ||${NC}"
     read -p "Confirm (yes/no): " confirm
-    if [[ "$confirm" == "yes" ]]; then
-        break
-    elif [[ "$confirm" == "no" ]]; then
-        continue
-    else
-        echo -e "${RED}Invalid input, please type 'yes' or 'no'.${NC}"
-    fi
+
+    case "$confirm" in
+        yes) break ;;
+        no) continue ;;
+        *) echo -e "${RED}Invalid input, please type 'yes' or 'no'.${NC}" ;;
+    esac
 done
 
+clear
 echo -e "${BLUE}Updating system and installing dependencies...${NC}"
 apt update && apt upgrade -y
-apt install sudo mc net-tools nano zip -y
-sudo apt update && sudo apt-get clean
-sudo apt-get install -y build-essential software-properties-common
-sudo add-apt-repository -y ppa:openjdk-r/ppa
-sudo apt update && sudo apt install -y openjdk-21-jdk
+apt install sudo mc net-tools nano zip jq -y
+apt update && apt-get clean
+apt-get install -y build-essential software-properties-common
+add-apt-repository -y ppa:openjdk-r/ppa
+apt update && apt install -y openjdk-21-jdk
 
-
+clear
 echo -e "${BLUE}Setting up Minecraft Server...${NC}"
-mkdir -p ~/minecraft && cd ~/minecraft
+mkdir -p ~/minecraft && cd ~/minecraft || exit
 
+echo -e "${YELLOW}Downloading server file...${NC}"
 if [[ "$software" == "Paper" ]]; then
     wget -O server.jar "https://api.papermc.io/v2/projects/paper/versions/$version/builds/latest/downloads/paper-$version-latest.jar"
 elif [[ "$software" == "Vanilla" ]]; then
     url=$(wget -qO- https://launchermeta.mojang.com/mc/game/version_manifest.json | jq -r --arg version "$version" '.versions[] | select(.id==$version) | .url' | xargs wget -qO- | jq -r '.downloads.server.url')
     wget -O server.jar "$url"
 fi
-
 
 echo -e "${BLUE}Creating start.sh script...${NC}"
 cat <<EOL > start.sh
@@ -83,7 +90,6 @@ java -Xms4096M -Xmx4096M --add-modules=jdk.incubator.vector \
 EOL
 
 chmod +x start.sh
-
 
 echo -e "${GREEN}Installation completed successfully!${NC}"
 echo -e "Run your server with: ${YELLOW}./start.sh${NC}"
