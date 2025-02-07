@@ -9,8 +9,8 @@ echo -e "${YELLOW}Welcome to the Minecraft Server Installer!${NC}"
 echo -e "This script is open-source and licensed under the MIT License."
 echo -e "GitHub Repository: ${BLUE}https://github.com/LucaBarbaLata/Minecraft-Server-Installer-Android${NC}\n"
 while true; do
-    read -p "Do you agree to continue? (yes/no): " consent
-    consent="${consent,,}"
+    read -r -p "Do you agree to continue? (yes/no): " consent
+    consent="$(echo "$consent" | xargs | tr '[:upper:]' '[:lower:]')"
     case "$consent" in
         yes) break ;;
         no) echo -e "${RED}You did not accept the terms. Exiting...${NC}"; exit 1 ;;
@@ -18,29 +18,27 @@ while true; do
     esac
 done
 while true; do
-    clear
     echo -e "${GREEN}Choose your server software:${NC}"
     echo "[1] Paper"
     echo "[2] Vanilla"
-    read -p "Enter the option (1 or 2): " server_software
+    read -r -p "Enter the option (1 or 2): " server_software
     case "$server_software" in
         1) software="Paper"; version="1.20.1" ;;
         2) software="Vanilla"; version="1.20.1" ;;
         *) echo -e "${RED}Invalid selection. Please choose again.${NC}"; sleep 2; continue ;;
     esac
-    clear
     echo -e "${YELLOW}==============================${NC}"
     echo -e "${YELLOW}BUILD CONFIGURATION${NC}"
     echo -e "${YELLOW}==============================${NC}"
     echo -e "💻 Software: ${GREEN}$software${NC}"
     echo -e "📅 Version: ${GREEN}$version${NC}"
     echo -e "---------------------------------------------------"
-    read -p "Is this information correct? (yes/no): " confirm
-    confirm="${confirm,,}"
+    read -r -p "Is this information correct? (yes/no): " confirm
+    confirm="$(echo "$confirm" | xargs | tr '[:upper:]' '[:lower:]')"
     if [[ "$confirm" == "yes" ]]; then
         break
     elif [[ "$confirm" == "no" ]]; then
-        echo -e "${RED}Let's reconfigure your selection...${NC}"
+        echo -e "${RED}Reconfiguring selection...${NC}"
         sleep 1
     else
         echo -e "${RED}Invalid input, please type 'yes' or 'no'.${NC}"
