@@ -1,107 +1,91 @@
 #!/bin/bash
 
-update_clean() {
-    sudo apt update
-    sudo apt-get clean
-}
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
 
-install_build_essential() {
-    sudo apt-get install -y build-essential
-}
+echo -e "${YELLOW}Welcome to the Minecraft Server Installer!${NC}"
+echo -e "This script is open-source and licensed under the MIT License."
+echo -e "GitHub Repository: ${BLUE}https://github.com/LucaBarbaLata/Minecraft-Server-Installer-Android${NC}\n"
+read -p "Do you agree to continue? (yes/no): " consent
+if [[ "$consent" != "yes" ]]; then
+    echo -e "${RED}You did not accept the terms. Exiting...${NC}"
+    exit 1
+fi
 
-install_software_properties_common() {
-    sudo apt-get install -y software-properties-common
-}
 
-add_openjdk_ppa() {
-    sudo add-apt-repository -y ppa:openjdk-r/ppa
-    sudo apt update
-}
+while true; do
+    echo -e "${GREEN}Choose your server software:${NC}"
+    echo "[1] Paper"
+    echo "[2] Vanilla"
+    read -p "Enter the option (1 or 2): " server_software
 
-download_server_jar() {
     case $server_software in
-        1)
-            echo "Downloading Vanilla server..."
-            wget -O server.jar "https://s3.amazonaws.com/Minecraft.Download/versions/$version/minecraft_server.$version.jar"
-            ;;
-        2)
-            echo "Downloading Paper server..."
-            wget -O server.jar "https://api.papermc.io/v2/projects/paper/versions/$version/builds/137/downloads/paper-$version-137.jar"
-            ;;
-        3)
-            echo "Downloading Ketting server..."
-            # Replace with the actual URL for Ketting server
-            wget -O server.jar "https://example.com/ketting-server-$version.jar"
-            ;;
-        4)
-            echo "Downloading Magma server..."
-            # Replace with the actual URL for Magma server
-            wget -O server.jar "https://example.com/magma-server-$version.jar"
-            ;;
-        *)
-            echo "Invalid server software selected."
-            exit 1
-            ;;
+        1) software="Paper"; version="1.20.1"; break;;
+        2) software="Vanilla"; version="1.20.1"; break;;
+        *) echo -e "${RED}Invalid selection. Please choose again.${NC}";;
     esac
-}
+done
 
-install_openjdk() {
-    sudo apt install -y openjdk-21-jdk
-}
+while true; do
+    clear
+    echo -e "${YELLOW}==============================${NC}"
+    echo -e "${YELLOW}BUILD CONFIGURATION${NC}"
+    echo -e "${YELLOW}==============================${NC}"
+    echo -e "💻 Software: ${GREEN}$software${NC}"
+    echo -e "📅 Version: ${GREEN}$version${NC}"
+    echo -e "---------------------------------------------------"
+    echo -e "Is this information correct?"
+    echo -e "${YELLOW}|| Yes ||                  || No ||${NC}"
+    read -p "Confirm (yes/no): " confirm
+    if [[ "$confirm" == "yes" ]]; then
+        break
+    elif [[ "$confirm" == "no" ]]; then
+        continue
+    else
+        echo -e "${RED}Invalid input, please type 'yes' or 'no'.${NC}"
+    fi
+done
 
-install_nano() {
-    sudo apt install -y nano
-}
+echo -e "${BLUE}Updating system and installing dependencies...${NC}"
+apt update && apt upgrade -y
+apt install sudo mc net-tools nano zip -y
+sudo apt update && sudo apt-get clean
+sudo apt-get install -y build-essential software-properties-common
+sudo add-apt-repository -y ppa:openjdk-r/ppa
+sudo apt update && sudo apt install -y openjdk-21-jdk
 
-install_zip() {
-    sudo apt install -y zip
-}
 
-run_server() {
-    java -Xmx${ram}M -Xms${ram}M -jar server.jar nogui
-}
+echo -e "${BLUE}Setting up Minecraft Server...${NC}"
+mkdir -p ~/minecraft && cd ~/minecraft
 
-clear
+if [[ "$software" == "Paper" ]]; then
+    wget -O server.jar "https://api.papermc.io/v2/projects/paper/versions/$version/builds/latest/downloads/paper-$version-latest.jar"
+elif [[ "$software" == "Vanilla" ]]; then
+    url=$(wget -qO- https://launchermeta.mojang.com/mc/game/version_manifest.json | jq -r --arg version "$version" '.versions[] | select(.id==$version) | .url' | xargs wget -qO- | jq -r '.downloads.server.url')
+    wget -O server.jar "$url"
+fi
 
-cat << "EOF"
- __  __ ____   _____ _______  _______   ____  _____   ___  _  _______ _______ 
-|  \/  |  _ \ / ____|__   __|/ ____\ \ / /  \/  |  _ \ / _ \| |/ / ____|__   __|
-| \  / | |_) | (___    | |  | (___  \ V /| \  / | |_) | | | | ' / (___    | |   
-| |\/| |  _ < \___ \   | |   \___ \  > < | |\/| |  _ <| | | |  < \___ \   | |   
-| |  | | |_) |____) |  | |   ____) |/ . \| |  | | |_) | |_| | . \____) |  | |   
-|_|  |_|____/|_____/   |_|  |_____//_/ \_\_|  |_|____/ \___/|_|\_\_____/   |_|   
-                                                                                
-EOF
 
-echo ""
-echo "Welcome to the Minecraft Server Setup Script!"
-echo ""
+echo -e "${BLUE}Creating start.sh script...${NC}"
+cat <<EOL > start.sh
+#!/bin/bash
+java -Xms4096M -Xmx4096M --add-modules=jdk.incubator.vector \
+    -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 \
+    -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch \
+    -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4 -XX:InitiatingHeapOccupancyPercent=15 \
+    -XX:G1MixedGCLiveThresholdPercent=90 -XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 \
+    -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1 -Dusing.aikars.flags=https://mcflags.emc.gs \
+    -Daikars.new.flags=true -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 \
+    -XX:G1HeapRegionSize=8M -XX:G1ReservePercent=20 -jar server.jar --nogui
+EOL
 
-echo "What server software do you want to use?"
-echo "[1] Vanilla"
-echo "[2] Paper"
-echo "[3] Ketting"
-echo "[4] Magma"
-read -p "Select an option [1-4]: " server_software
+chmod +x start.sh
 
-echo "What version should we install?"
-echo "[1] 1.20.1"
-read -p "Select an option [1-1]: " version
 
-read -p "How much RAM should we allocate to the Minecraft server? In MB: " ram
-
-update_clean
-install_build_essential
-install_software_properties_common
-add_openjdk_ppa
-install_openjdk
-install_nano
-install_zip
-download_server_jar
-
-clear
-echo "Server Installed! You can run the server with the following command:"
-echo "java -Xmx${ram}M -Xms${ram}M -jar server.jar nogui"
-echo ""
-ip=$(hostname -I | awk '{print $1}')
-echo "The server IP is: ${ip}"
+echo -e "${GREEN}Installation completed successfully!${NC}"
+echo -e "Run your server with: ${YELLOW}./start.sh${NC}"
+echo -e "Listing server directory contents:"
+ls -la
