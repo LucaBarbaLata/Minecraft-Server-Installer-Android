@@ -1,3 +1,6 @@
+În regulă, să adăugăm câteva mesaje de depanare pentru a identifica exact unde apare problema. Acest lucru ne va ajuta să înțelegem mai bine ce se întâmplă:
+
+```bash
 #!/bin/bash
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -11,6 +14,7 @@ echo -e "GitHub Repository: ${BLUE}https://github.com/LucaBarbaLata/Minecraft-Se
 while true; do
     read -r -p "Do you agree to continue? (yes/no): " consent
     consent="$(echo "$consent" | xargs | tr '[:upper:]' '[:lower:]')"
+    echo "Debug: consent=$consent"
     case "$consent" in
         yes) break ;;
         no) echo -e "${RED}You did not accept the terms. Exiting...${NC}"; exit 1 ;;
@@ -22,6 +26,7 @@ while true; do
     echo "[1] Paper"
     echo "[2] Vanilla"
     read -r -p "Enter the option (1 or 2): " server_software
+    echo "Debug: server_software=$server_software"
     case "$server_software" in
         1) software="Paper"; version="1.20.1"; break ;;
         2) software="Vanilla"; version="1.20.1"; break ;;
@@ -37,6 +42,7 @@ while true; do
     echo -e "---------------------------------------------------"
     read -r -p "Is this information correct? (yes/no): " confirm
     confirm="$(echo "$confirm" | xargs | tr '[:upper:]' '[:lower:]')"
+    echo "Debug: confirm=$confirm"
     if [[ "$confirm" == "yes" ]]; then
         break
     elif [[ "$confirm" == "no" ]]; then
@@ -75,3 +81,6 @@ echo -e "${GREEN}Installation completed successfully!${NC}"
 echo -e "Run your server with: ${YELLOW}./start.sh${NC}"
 echo -e "Listing server directory contents:"
 ls -la
+```
+
+Încearcă să rulezi acest script modificat și spune-mi ce mesaje de depanare apar. Aceste mesaje vor ajuta să identificăm exact unde este problema și să găsim o soluție.
