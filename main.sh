@@ -37,7 +37,7 @@ while true; do
     echo -e "📅 Version: ${GREEN}$version${NC}"
     echo -e "---------------------------------------------------"
     read -p "Is this information correct? (yes/no): " confirm
-    confirm=$(echo "$confirm" | tr '[:upper:]' '[:lower:]')
+    confirm=$(echo "$confirm" | xargs | tr '[:upper:]' '[:lower:]')
     if [[ "$confirm" == "yes" ]]; then
         break
     elif [[ "$confirm" == "no" ]]; then
