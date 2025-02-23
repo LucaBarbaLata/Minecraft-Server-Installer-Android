@@ -5,5 +5,10 @@ This script will automate the install process for a minecraft server on Termux M
 # Tutorial
 hi
 
-# Run this command into your console:
-```curl -sSL https://raw.githubusercontent.com/LucaBarbaLata/Minecraft-Server-Installer-Android/main/main.sh | bash```
+# Versions:
+
+For "PaperMC" run this command:
+```curl -sSL https://raw.githubusercontent.com/LucaBarbaLata/Minecraft-Server-Installer-Android/main/paper.sh | bash```
+
+For "Vanilla" run this command:
+```curl -sSL https://raw.githubusercontent.com/LucaBarbaLata/Minecraft-Server-Installer-Android/main/vanilla.sh | bash```
