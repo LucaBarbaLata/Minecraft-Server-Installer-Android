@@ -38,4 +38,4 @@ chmod +x start.sh
 echo "eula=true" > eula.txt
 
 # Notify user
-echo "Minecraft Server is set up! Run it by typing ./start.sh"
+echo "Minecraft Server is set up! Use `cd mc/` then ./start.sh to start the server"
