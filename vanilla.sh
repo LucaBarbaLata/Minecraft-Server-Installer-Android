@@ -1,5 +1,24 @@
 #!/bin/bash
 
+# Display ASCII banner
+clear
+echo "=================================================================================================================================="
+echo "    __  ____                            ______     _____                              ____           __        ____         "
+echo "   /  |/  (_)___  ___  ______________ _/ __/ /_   / ___/___  ______   _____  _____   /  _/___  _____/ /_____ _/ / /__  _____"
+echo "  / /|_/ / / __ \/ _ \/ ___/ ___/ __ \`/ /_/ __/   \__ \/ _ \/ ___/ | / / _ \/ ___/   / // __ \/ ___/ __/ __ \`/ / / _ \/ ___/"
+echo " / /  / / / / / /  __/ /__/ /  / /_/ / __/ /_    ___/ /  __/ /   | |/ /  __/ /     _/ // / / (__  ) /_/ /_/ / / /  __/ /    "
+echo "/_/  /_/_/_/ /_/\___/\___/_/   \__,_/_/  \__/   /____/\___/_/    |___/\___/_/     /___/_/ /_/____/\__/\__,_/_/_/\___/_/     "
+echo "=================================================================================================================================="
+echo "Minecraft Server Installer"
+echo "By: Luca-rickrolled-himself"
+echo "(https://github.com/LucaBarbaLata/Minecraft-Server-Installer-Android)"
+echo "==================================================================="
+
+# Countdown before execution
+echo ""
+echo "The script will run in 3 seconds..."
+sleep 3
+
 # Update and upgrade system
 apt update && apt upgrade -y
 
@@ -40,4 +59,12 @@ echo "eula=true" > eula.txt
 clear
 
 # Notify user
-echo "Minecraft Server is set up! Use `cd mc/` then ./start.sh to start the server"
+echo "==================================================================="
+echo "Minecraft Server is set up! 🎉"
+echo "To start the server, use the following commands:"
+echo ""
+echo "cd mc/"
+echo "./start.sh"
+echo ""
+echo "Enjoy your game! 🚀"
+echo "==================================================================="
