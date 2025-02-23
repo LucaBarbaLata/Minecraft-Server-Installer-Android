@@ -3,8 +3,12 @@
 This script will automate the install process for a minecraft server on Termux Mobile.
 
 # Tutorial
-hi
+Before you run the script make sure you installed ubuntu on termux (otherwise it wont work)
+Then run:
+``apt update``
+``apt install curl -y``
 
+Then you can proceed in pasting the desired command
 # Versions:
 
 For "PaperMC" run this command:
