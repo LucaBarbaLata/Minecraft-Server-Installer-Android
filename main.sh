@@ -1,80 +1,42 @@
 #!/bin/bash
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-clear
-echo -e "${YELLOW}Welcome to the Minecraft Server Installer!${NC}"
-echo -e "This script is open-source and licensed under the MIT License."
-echo -e "GitHub Repository: ${BLUE}https://github.com/LucaBarbaLata/Minecraft-Server-Installer-Android${NC}\n"
-while true; do
-    read -r -p "Do you agree to continue? (yes/no): " consent
-    consent="$(echo "$consent" | xargs | tr '[:upper:]' '[:lower:]')"
-    echo "Debug: consent=$consent"
-    case "$consent" in
-        yes) break ;;
-        no) echo -e "${RED}You did not accept the terms. Exiting...${NC}"; exit 1 ;;
-        *) echo -e "${RED}Invalid input. Please type 'yes' or 'no'.${NC}"; sleep 2 ;;
-    esac
-done
-while true; do
-    echo -e "${GREEN}Choose your server software:${NC}"
-    echo "[1] Paper"
-    echo "[2] Vanilla"
-    read -r -p "Enter the option (1 or 2): " server_software
-    echo "Debug: server_software=$server_software"
-    case "$server_software" in
-        1) software="Paper"; version="1.20.1"; break ;;
-        2) software="Vanilla"; version="1.20.1"; break ;;
-        *) echo -e "${RED}Invalid selection. Please choose again.${NC}"; sleep 2 ;;
-    esac
-done
-while true; do
-    echo -e "${YELLOW}==============================${NC}"
-    echo -e "${YELLOW}BUILD CONFIGURATION${NC}"
-    echo -e "${YELLOW}==============================${NC}"
-    echo -e "💻 Software: ${GREEN}$software${NC}"
-    echo -e "📅 Version: ${GREEN}$version${NC}"
-    echo -e "---------------------------------------------------"
-    read -r -p "Is this information correct? (yes/no): " confirm
-    confirm="$(echo "$confirm" | xargs | tr '[:upper:]' '[:lower:]')"
-    echo "Debug: confirm=$confirm"
-    if [[ "$confirm" == "yes" ]]; then
-        break
-    elif [[ "$confirm" == "no" ]]; then
-        echo -e "${RED}Reconfiguring selection...${NC}"
-        sleep 1
-    else
-        echo -e "${RED}Invalid input, please type 'yes' or 'no'.${NC}"
-        sleep 2
-    fi
-done
-clear
-echo -e "${BLUE}Updating system and installing dependencies...${NC}"
+
+# Update and upgrade system
 apt update && apt upgrade -y
+
+# Install necessary packages
 apt install sudo mc net-tools nano zip jq wget -y
+
+# Clean package lists
 apt update && apt-get clean
+
+# Install build-essential and Java dependencies
 apt-get install -y build-essential software-properties-common
 add-apt-repository -y ppa:openjdk-r/ppa
 apt update && apt install -y openjdk-21-jdk
+
+# Clear screen
 clear
-echo -e "${BLUE}Setting up Minecraft Server...${NC}"
-mkdir -p ~/minecraft && cd ~/minecraft || exit
-echo -e "${YELLOW}Downloading server file...${NC}"
-if [[ "$software" == "Paper" ]]; then
-    wget -O server.jar "https://api.papermc.io/v2/projects/paper/versions/$version/builds/latest/downloads/paper-$version-latest.jar"
-elif [[ "$software" == "Vanilla" ]]; then
-    url=$(wget -qO- https://launchermeta.mojang.com/mc/game/version_manifest.json | jq -r --arg version "$version" '.versions[] | select(.id==$version) | .url' | xargs wget -qO- | jq -r '.downloads.server.url')
-    wget -O server.jar "$url"
-fi
-echo -e "${BLUE}Creating start.sh script...${NC}"
-cat <<EOL > start.sh
+
+# Create and enter the Minecraft server directory
+mkdir -p mc
+cd mc/
+
+# Download PaperMC server jar
+wget https://api.papermc.io/v2/projects/paper/versions/1.21.4/builds/177/downloads/paper-1.21.4-177.jar
+mv paper-1.21.4-177.jar server.jar
+
+# Create start script
+cat <<EOF > start.sh
 #!/bin/bash
-java -Xms4096M -Xmx4096M --add-modules=jdk.incubator.vector -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4 -XX:InitiatingHeapOccupancyPercent=15 -XX:G1MixedGCLiveThresholdPercent=90 -XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1 -Dusing.aikars.flags=https://mcflags.emc.gs -Daikars.new.flags=true -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=8M -XX:G1ReservePercent=20 -jar server.jar --nogui
-EOL
+
+java -Xms3072M -Xmx3072M --add-modules=jdk.incubator.vector -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4 -XX:InitiatingHeapOccupancyPercent=15 -XX:G1MixedGCLiveThresholdPercent=90 -XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1 -Dusing.aikars.flags=https://mcflags.emc.gs -Daikars.new.flags=true -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=8M -XX:G1ReservePercent=20 -jar server.jar --nogui
+EOF
+
+# Give execution permission to start script
 chmod +x start.sh
-echo -e "${GREEN}Installation completed successfully!${NC}"
-echo -e "Run your server with: ${YELLOW}./start.sh${NC}"
-echo -e "Listing server directory contents:"
-ls -la
+
+# Accept EULA automatically
+echo "eula=true" > eula.txt
+
+# Notify user
+echo "Minecraft Server is set up! Run it by typing ./start.sh"
