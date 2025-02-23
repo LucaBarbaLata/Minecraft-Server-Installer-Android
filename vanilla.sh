@@ -22,8 +22,7 @@ mkdir -p mc
 cd mc/
 
 # Download PaperMC server jar
-wget https://api.papermc.io/v2/projects/paper/versions/1.21.4/builds/177/downloads/paper-1.21.4-177.jar
-mv paper-1.21.4-177.jar server.jar
+wget https://piston-data.mojang.com/v1/objects/4707d00eb834b446575d89a61a11b5d548d8c001/server.jar
 
 # Create start script
 cat <<EOF > start.sh

@@ -3,7 +3,16 @@
 This script will automate the install process for a minecraft server on Termux Mobile.
 
 # Tutorial
-hi
+Before you run the script make sure you installed ubuntu on termux (otherwise it wont work)
+Then run:
+``apt update``
+``apt install curl -y``
 
-# Run this command into your console:
-```curl -sSL https://raw.githubusercontent.com/LucaBarbaLata/Minecraft-Server-Installer-Android/main/main.sh | bash```
+Then you can proceed in pasting the desired command
+# Versions:
+
+For "PaperMC" run this command:
+```curl -sSL https://raw.githubusercontent.com/LucaBarbaLata/Minecraft-Server-Installer-Android/main/paper.sh | bash```
+
+For "Vanilla" run this command:
+```curl -sSL https://raw.githubusercontent.com/LucaBarbaLata/Minecraft-Server-Installer-Android/main/vanilla.sh | bash```
