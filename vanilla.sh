@@ -37,5 +37,7 @@ chmod +x start.sh
 # Accept EULA automatically
 echo "eula=true" > eula.txt
 
+clear
+
 # Notify user
 echo "Minecraft Server is set up! Use `cd mc/` then ./start.sh to start the server"
