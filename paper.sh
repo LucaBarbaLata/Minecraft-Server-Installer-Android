@@ -1,8 +1,7 @@
 #!/bin/bash
 
 # Prompt user for confirmation
-echo "This script will consume approximately 3 GB of data. Continue? (Y/n)"
-read -r response
+read -p "This script will consume approximately 3 GB of data. Continue? (Y/n) " response
 if [[ "$response" =~ ^([nN][oO]?|[nN])$ ]]; then
     echo "Installation aborted."
     exit 1
