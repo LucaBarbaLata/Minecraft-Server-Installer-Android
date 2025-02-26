@@ -41,28 +41,63 @@ echo "==================================================================="
 log "\n[⏳] The script will run in 3 seconds..."
 sleep 3
 
-# Update and upgrade system
+# Update the system: Make sure it waits for completion
 log "[🔧] Updating OS..."
 run_command "apt update && apt upgrade -y"
+if [ $? -ne 0 ]; then
+    log "[❌] OS update failed."
+    exit 1
+fi
 
-# Install necessary packages
+# Install necessary packages: Ensuring that each command finishes before the next
 log "[📦] Installing necessary packages..."
 run_command "apt install sudo mc net-tools nano zip jq wget -y"
+if [ $? -ne 0 ]; then
+    log "[❌] Package installation failed."
+    exit 1
+fi
 
 # Clean package lists
 log "[🧹] Cleaning package lists..."
 run_command "apt update && apt-get clean"
+if [ $? -ne 0 ]; then
+    log "[❌] Package clean failed."
+    exit 1
+fi
 
 # Install build-essential and Java dependencies
 log "[⚙️] Installing build-essential and Java dependencies..."
 run_command "apt-get install -y build-essential software-properties-common"
+if [ $? -ne 0 ]; then
+    log "[❌] Failed to install build-essential."
+    exit 1
+fi
+
 run_command "add-apt-repository -y ppa:openjdk-r/ppa"
+if [ $? -ne 0 ]; then
+    log "[❌] Failed to add OpenJDK repository."
+    exit 1
+fi
+
 run_command "apt update"
+if [ $? -ne 0 ]; then
+    log "[❌] Failed to update package list after adding repository."
+    exit 1
+fi
+
 run_command "apt install -y openjdk-21-jdk"
+if [ $? -ne 0 ]; then
+    log "[❌] Java installation failed."
+    exit 1
+fi
 
 # Verify Java installation
 log "[🔍] Verifying Java installation..."
 run_command "java -version"
+if [ $? -ne 0 ]; then
+    log "[❌] Java not installed properly."
+    exit 1
+fi
 
 # Clear screen
 clear
@@ -75,7 +110,16 @@ cd mc || exit 1  # Move into mc directory
 # Download PaperMC server jar
 log "[🌐] Downloading PaperMC server jar..."
 run_command "wget https://api.papermc.io/v2/projects/paper/versions/1.21.4/builds/177/downloads/paper-1.21.4-177.jar"
+if [ $? -ne 0 ]; then
+    log "[❌] Download failed."
+    exit 1
+fi
+
 run_command "mv paper-1.21.4-177.jar server.jar"
+if [ $? -ne 0 ]; then
+    log "[❌] Renaming the server jar file failed."
+    exit 1
+fi
 
 # Create start script
 log "[✍️] Creating start script..."
@@ -88,6 +132,10 @@ EOF
 # Give execution permission to start script
 log "[🔑] Setting execution permission for start script..."
 run_command "chmod +x ./start.sh"
+if [ $? -ne 0 ]; then
+    log "[❌] Failed to set execution permission for the start script."
+    exit 1
+fi
 
 # Accept EULA automatically
 log "[📜] Accepting Minecraft EULA..."
