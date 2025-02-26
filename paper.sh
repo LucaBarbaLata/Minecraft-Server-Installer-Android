@@ -62,7 +62,7 @@ run_command "apt update && apt install -y openjdk-21-jdk"
 # Clear screen
 clear
 
-# Create and enter the Minecraft server directory
+# Create Minecraft server directory
 log "[📁] Creating Minecraft server directory..."
 run_command "mkdir -p mc"
 cd mc || exit 1  # Move into mc directory
@@ -82,7 +82,7 @@ EOF
 
 # Give execution permission to start script
 log "[🔑] Setting execution permission for start script..."
-run_command "chmod +x start.sh"
+chmod +x ./start.sh  # Ensure it's done in the current directory (mc)
 
 # Accept EULA automatically
 log "[📜] Accepting Minecraft EULA..."
