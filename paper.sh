@@ -1,5 +1,28 @@
 #!/bin/bash
 
+# Check if -verbose flag is present
+VERBOSE=false
+for arg in "$@"; do
+    if [ "$arg" == "-verbose" ]; then
+        VERBOSE=true
+        break
+    fi
+done
+
+# Function to execute commands with or without verbosity
+run_command() {
+    if [ "$VERBOSE" == true ]; then
+        $1 # Run with full output
+    else
+        $1 &>/dev/null # Run silently
+    fi
+}
+
+# Function to log emoji messages
+log() {
+    echo -e "$1"
+}
+
 # Display ASCII banner
 clear
 echo "=================================================================================================================================="
@@ -15,36 +38,41 @@ echo "(https://github.com/LucaBarbaLata/Minecraft-Server-Installer-Android)"
 echo "==================================================================="
 
 # Countdown before execution
-echo ""
-echo "The script will run in 3 seconds..."
+log "\n[⏳] The script will run in 3 seconds..."
 sleep 3
 
 # Update and upgrade system
-apt update && apt upgrade -y
+log "[🔧] Updating OS..."
+run_command "apt update && apt upgrade -y"
 
 # Install necessary packages
-apt install sudo mc net-tools nano zip jq wget -y
+log "[📦] Installing necessary packages..."
+run_command "apt install sudo mc net-tools nano zip jq wget -y"
 
 # Clean package lists
-apt update && apt-get clean
+log "[🧹] Cleaning package lists..."
+run_command "apt update && apt-get clean"
 
 # Install build-essential and Java dependencies
-apt-get install -y build-essential software-properties-common
-add-apt-repository -y ppa:openjdk-r/ppa
-apt update && apt install -y openjdk-21-jdk
+log "[⚙️] Installing build-essential and Java dependencies..."
+run_command "apt-get install -y build-essential software-properties-common"
+run_command "add-apt-repository -y ppa:openjdk-r/ppa"
+run_command "apt update && apt install -y openjdk-21-jdk"
 
 # Clear screen
 clear
 
 # Create and enter the Minecraft server directory
-mkdir -p mc
-cd mc/
+log "[📁] Creating Minecraft server directory..."
+run_command "mkdir -p mc && cd mc/"
 
 # Download PaperMC server jar
-wget https://api.papermc.io/v2/projects/paper/versions/1.21.4/builds/177/downloads/paper-1.21.4-177.jar
-mv paper-1.21.4-177.jar server.jar
+log "[🌐] Downloading PaperMC server jar..."
+run_command "wget https://api.papermc.io/v2/projects/paper/versions/1.21.4/builds/177/downloads/paper-1.21.4-177.jar"
+run_command "mv paper-1.21.4-177.jar server.jar"
 
 # Create start script
+log "[✍️] Creating start script..."
 cat <<EOF > start.sh
 #!/bin/bash
 
@@ -52,20 +80,22 @@ java -Xms3072M -Xmx3072M --add-modules=jdk.incubator.vector -XX:+UseG1GC -XX:+Pa
 EOF
 
 # Give execution permission to start script
-chmod +x start.sh
+log "[🔑] Setting execution permission for start script..."
+run_command "chmod +x start.sh"
 
 # Accept EULA automatically
+log "[📜] Accepting Minecraft EULA..."
 echo "eula=true" > eula.txt
 
 clear
 
 # Notify user
-echo "==================================================================="
-echo "Minecraft Server is set up! 🎉"
-echo "To start the server, use the following commands:"
-echo ""
-echo "cd mc/"
-echo "./start.sh"
-echo ""
-echo "Enjoy your game! 🚀"
-echo "==================================================================="
+log "==================================================================="
+log "[✅] Minecraft Server is set up! 🎉"
+log "To start the server, use the following commands:"
+log ""
+log "cd mc/"
+log "./start.sh"
+log ""
+log "Enjoy your game! 🚀"
+log "==================================================================="
