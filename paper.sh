@@ -18,7 +18,7 @@ run_command() {
     fi
 }
 
-# Function to log emoji messages
+# Function to log messages
 log() {
     echo -e "$1"
 }
@@ -41,9 +41,10 @@ echo "==================================================================="
 log "\n[⏳] The script will run in 3 seconds..."
 sleep 3
 
-# Update the system: Make sure it waits for completion
+# Update the system: Ensure we are fully waiting for apt-get update and upgrade
 log "[🔧] Updating OS..."
-run_command "apt update && apt upgrade -y"
+run_command "apt-get update -y"  # Use apt-get instead of apt for more reliable behavior
+run_command "apt-get upgrade -y"
 if [ $? -ne 0 ]; then
     log "[❌] OS update failed."
     exit 1
@@ -51,7 +52,7 @@ fi
 
 # Install necessary packages: Ensuring that each command finishes before the next
 log "[📦] Installing necessary packages..."
-run_command "apt install sudo mc net-tools nano zip jq wget -y"
+run_command "apt-get install sudo mc net-tools nano zip jq wget -y"
 if [ $? -ne 0 ]; then
     log "[❌] Package installation failed."
     exit 1
@@ -59,7 +60,7 @@ fi
 
 # Clean package lists
 log "[🧹] Cleaning package lists..."
-run_command "apt update && apt-get clean"
+run_command "apt-get clean"
 if [ $? -ne 0 ]; then
     log "[❌] Package clean failed."
     exit 1
@@ -79,13 +80,13 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-run_command "apt update"
+run_command "apt-get update -y"
 if [ $? -ne 0 ]; then
     log "[❌] Failed to update package list after adding repository."
     exit 1
 fi
 
-run_command "apt install -y openjdk-21-jdk"
+run_command "apt-get install -y openjdk-21-jdk"
 if [ $? -ne 0 ]; then
     log "[❌] Java installation failed."
     exit 1
