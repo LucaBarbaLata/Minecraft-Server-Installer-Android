@@ -45,6 +45,7 @@ echo -e "=======================================================================
 echo -e "Minecraft Server Installer"
 echo -e "By: Luca-rickrolled-himself"
 echo -e "(https://github.com/LucaBarbaLata/Minecraft-Server-Installer-Android)"
+echo -e "WARNING: This Script Will Consume Aprox. 3 GB of Data!"
 echo -e "==================================================================="
 
 # Countdown before execution
