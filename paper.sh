@@ -1,15 +1,5 @@
 #!/bin/bash
 
-# Prompt user for confirmation
-echo "This script will consume approximately 3 GB of data. Continue? (Y/n)"
-read -r response </dev/tty
-
-if [[ "$response" =~ ^([nN][oO]?|[nN])$ ]]; then
-    echo "Installation aborted."
-    exit 1
-fi
-
-
 # Check if -verbose flag is present
 VERBOSE=false
 for arg in "$@"; do
