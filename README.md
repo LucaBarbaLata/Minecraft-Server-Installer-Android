@@ -13,6 +13,3 @@ Then you can proceed in pasting the desired command
 
 For "PaperMC" run this command:
 ```curl -sSL https://raw.githubusercontent.com/LucaBarbaLata/Minecraft-Server-Installer-Android/main/paper.sh | bash```
-
-For "Vanilla" run this command:
-```curl -sSL https://raw.githubusercontent.com/LucaBarbaLata/Minecraft-Server-Installer-Android/main/vanilla.sh | bash```
