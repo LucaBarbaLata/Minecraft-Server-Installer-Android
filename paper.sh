@@ -56,8 +56,18 @@ run_command "apt update && apt-get clean"
 # Install build-essential and Java dependencies
 log "[⚙️] Installing build-essential and Java dependencies..."
 run_command "apt-get install -y build-essential software-properties-common"
+
+# Add OpenJDK repository and update
 run_command "add-apt-repository -y ppa:openjdk-r/ppa"
-run_command "apt update && apt install -y openjdk-21-jdk"
+run_command "apt update"
+
+# Install OpenJDK 21
+log "[☕] Installing OpenJDK 21..."
+run_command "apt install -y openjdk-21-jdk"
+
+# Verify Java installation
+log "[🔍] Verifying Java installation..."
+run_command "java -version"
 
 # Clear screen
 clear
