@@ -56,12 +56,8 @@ run_command "apt update && apt-get clean"
 # Install build-essential and Java dependencies
 log "[⚙️] Installing build-essential and Java dependencies..."
 run_command "apt-get install -y build-essential software-properties-common"
-
-# Add OpenJDK repository and update
-run_command "add-apt-repository -y ppa:openjdk-r/ppa" && run_command "apt update"
-
-# Install OpenJDK 21
-log "[☕] Installing OpenJDK 21..."
+run_command "add-apt-repository -y ppa:openjdk-r/ppa"
+run_command "apt update"
 run_command "apt install -y openjdk-21-jdk"
 
 # Verify Java installation
@@ -73,11 +69,13 @@ clear
 
 # Create Minecraft server directory
 log "[📁] Creating Minecraft server directory..."
-run_command "mkdir -p mc" && cd mc || exit 1  # Move into mc directory
+run_command "mkdir -p mc"
+cd mc || exit 1  # Move into mc directory
 
 # Download PaperMC server jar
 log "[🌐] Downloading PaperMC server jar..."
-run_command "wget https://api.papermc.io/v2/projects/paper/versions/1.21.4/builds/177/downloads/paper-1.21.4-177.jar" && run_command "mv paper-1.21.4-177.jar server.jar"
+run_command "wget https://api.papermc.io/v2/projects/paper/versions/1.21.4/builds/177/downloads/paper-1.21.4-177.jar"
+run_command "mv paper-1.21.4-177.jar server.jar"
 
 # Create start script
 log "[✍️] Creating start script..."
