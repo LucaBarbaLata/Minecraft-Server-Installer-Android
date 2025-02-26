@@ -64,7 +64,8 @@ clear
 
 # Create and enter the Minecraft server directory
 log "[📁] Creating Minecraft server directory..."
-run_command "mkdir -p mc && cd mc/"
+run_command "mkdir -p mc"
+cd mc || exit 1  # Move into mc directory
 
 # Download PaperMC server jar
 log "[🌐] Downloading PaperMC server jar..."
