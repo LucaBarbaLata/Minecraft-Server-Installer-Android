@@ -9,7 +9,6 @@ Then run:
 ``apt update && apt install curl -y``
 
 Then you can proceed in pasting the desired command
-# Versions:
+# Command:
 
-For "PaperMC" run this command:
-```curl -sSL https://raw.githubusercontent.com/LucaBarbaLata/Minecraft-Server-Installer-Android/main/paper.sh | bash```
+```curl -sSL https://raw.githubusercontent.com/LucaBarbaLata/Minecraft-Server-Installer-Android/main/main.sh -o /tmp/main.sh && bash /tmp/main.sh```
