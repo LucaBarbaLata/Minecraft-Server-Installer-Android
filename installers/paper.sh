@@ -63,7 +63,7 @@ JAR_URL="https://api.papermc.io/v2/projects/paper/versions/$MC_VERSION/builds/$B
 
 # Update and install necessary packages
 log "${BLUE}[🔧] Updating OS and installing dependencies..."
-run_command "apt-get update -y && apt-get upgrade -y"
+run_command "apt update -y && apt upgrade -y"
 run_command "apt-get install sudo mc net-tools nano zip wget -y"
 run_command "apt-get install -y build-essential software-properties-common"
 run_command "add-apt-repository -y ppa:openjdk-r/ppa"
