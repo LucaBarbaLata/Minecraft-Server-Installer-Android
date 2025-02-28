@@ -63,7 +63,7 @@ fi
 
 # Install necessary packages
 log "${BLUE}[📦] Installing necessary packages..."
-run_command "apt-get install sudo mc net-tools nano zip jq wget -y"
+run_command "apt-get install sudo mc net-tools nano zip wget -y"
 if [ $? -ne 0 ]; then
     log "${RED}[❌] Package installation failed."
     exit 1
