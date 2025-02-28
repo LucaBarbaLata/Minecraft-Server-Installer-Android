@@ -42,7 +42,7 @@ log "  / /|_/ / / __ \/ _ \/ ___/ ___/ __ \`/ /_/ __/   \__ \/ _ \/ ___/ | / / _
 log " / /  / / / / / /  __/ /__/ /  / /_/ / __/ /_    ___/ /  __/ /   | |/ /  __/ /     _/ // / / (__  ) /_/ /_/ / / /  __/ /    "
 log "/_/  /_/_/_/ /_/\___/\___/_/   \__,_/_/  \__/   /____/\___/_/    |___/\___/_/     /___/_/ /_/____/\__/\__,_/_/_/\___/_/     "
 log "=================================================================================================================================="
-log "Minecraft Server Installer (PaperMC)"
+log "Minecraft Server Installer (KettingLauncher)"
 log "By: Luca-rickrolled-himself"
 log "(https://github.com/LucaBarbaLata/Minecraft-Server-Installer-Android)"
 log "WARNING: This Script Will Consume Aprox. 3 GB of Data!"
@@ -50,16 +50,9 @@ log "==================================================================="
 
 log "${YELLOW}[⏳] Waiting 3 seconds before starting script"
 sleep 3
-# Ask the user for the Minecraft version
-read -p "Enter the Minecraft version you want to install (default: 1.21.4): " MC_VERSION
-MC_VERSION=${MC_VERSION:-1.21.4}
-
-# Ask the user for the build number
-read -p "Enter the build number (default: 185): " BUILD_NUMBER
-BUILD_NUMBER=${BUILD_NUMBER:-185}
 
 # Define the download URL
-JAR_URL="https://api.papermc.io/v2/projects/paper/versions/$MC_VERSION/builds/$BUILD_NUMBER/downloads/paper-$MC_VERSION-$BUILD_NUMBER.jar"
+JAR_URL="https://github.com/kettingpowered/kettinglauncher/releases/download/v1.5.1/kettinglauncher-1.5.1.jar"
 
 # Update and install necessary packages
 log "${BLUE}[🔧] Updating OS and installing dependencies..."
@@ -76,7 +69,7 @@ mkdir -p mc
 cd mc || exit 1
 
 # Download PaperMC server jar
-log "${CYAN}[🌐] Downloading PaperMC server jar for version $MC_VERSION build $BUILD_NUMBER..."
+log "${CYAN}[🌐] Downloading KettingLauncher server jar..."
 wget "$JAR_URL" -O server.jar
 if [ $? -ne 0 ]; then
     log "${RED}[❌] Download failed."
@@ -100,11 +93,12 @@ echo "eula=true" > eula.txt
 # Notify user
 clear
 log "==================================================================="
-log "${GREEN}[✅] Minecraft Server $MC_VERSION build $BUILD_NUMBER is set up! 🎉"
+log "${GREEN}[✅] KettingLauncher is set up! 🎉"
 log "To start the server, use the following commands:"
 log ""
 log "cd mc/"
 log "./start.sh"
+log "${YELLOW}After running the server you will be prompted to choose a Minecraft Version, so continue from there."
 log ""
 log "Enjoy your game! 🚀"
 log "==================================================================="

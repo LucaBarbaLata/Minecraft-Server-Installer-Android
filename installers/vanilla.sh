@@ -28,6 +28,9 @@ run_command() {
     fi
 }
 
+#Install jq
+apt install jq -y
+
 # Function to log messages with colors
 log() {
     echo -e "$1"
@@ -42,7 +45,7 @@ log "  / /|_/ / / __ \/ _ \/ ___/ ___/ __ \`/ /_/ __/   \__ \/ _ \/ ___/ | / / _
 log " / /  / / / / / /  __/ /__/ /  / /_/ / __/ /_    ___/ /  __/ /   | |/ /  __/ /     _/ // / / (__  ) /_/ /_/ / / /  __/ /    "
 log "/_/  /_/_/_/ /_/\___/\___/_/   \__,_/_/  \__/   /____/\___/_/    |___/\___/_/     /___/_/ /_/____/\__/\__,_/_/_/\___/_/     "
 log "=================================================================================================================================="
-log "Minecraft Server Installer (PaperMC)"
+log "Minecraft Server Installer (Vanilla)"
 log "By: Luca-rickrolled-himself"
 log "(https://github.com/LucaBarbaLata/Minecraft-Server-Installer-Android)"
 log "WARNING: This Script Will Consume Aprox. 3 GB of Data!"
@@ -50,16 +53,36 @@ log "==================================================================="
 
 log "${YELLOW}[⏳] Waiting 3 seconds before starting script"
 sleep 3
+echo ""
+log "${CYAN}[⏳] Fetching Minecraft version manifest..."
+VERSION_MANIFEST=$(curl -s https://launchermeta.mojang.com/mc/game/version_manifest.json)
+sleep 1
+echo -e "${GREEN}[✅] Done!"
+sleep 1
 # Ask the user for the Minecraft version
 read -p "Enter the Minecraft version you want to install (default: 1.21.4): " MC_VERSION
 MC_VERSION=${MC_VERSION:-1.21.4}
+# Find the latest release for the requested major version
+LATEST_RELEASE=$(echo "$VERSION_MANIFEST" | jq -r --arg MC_VERSION "$MC_VERSION" '
+  .versions[] | select(.id | startswith($MC_VERSION)) | select(.type=="release") | .id' | head -n 1
+)
 
-# Ask the user for the build number
-read -p "Enter the build number (default: 185): " BUILD_NUMBER
-BUILD_NUMBER=${BUILD_NUMBER:-185}
+if [[ -z "$LATEST_RELEASE" ]]; then
+    echo -e "${RED}[❌] No matching version found for '$MC_VERSION'. Try again."
+    exit 1
+fi
+
+echo -e "${GREEN}[✅] Version found! Proceeding with the instalation!"
+sleep 2
+echo ""
+echo ""
+# Get the JSON URL for the latest release
+VERSION_URL=$(echo "$VERSION_MANIFEST" | jq -r --arg LATEST_RELEASE "$LATEST_RELEASE" '
+  .versions[] | select(.id == $LATEST_RELEASE) | .url'
+)
 
 # Define the download URL
-JAR_URL="https://api.papermc.io/v2/projects/paper/versions/$MC_VERSION/builds/$BUILD_NUMBER/downloads/paper-$MC_VERSION-$BUILD_NUMBER.jar"
+SERVER_URL=$(curl -s "$VERSION_URL" | jq -r '.downloads.server.url')
 
 # Update and install necessary packages
 log "${BLUE}[🔧] Updating OS and installing dependencies..."
@@ -75,9 +98,9 @@ log "${BLUE}[📁] Creating Minecraft server directory..."
 mkdir -p mc
 cd mc || exit 1
 
-# Download PaperMC server jar
-log "${CYAN}[🌐] Downloading PaperMC server jar for version $MC_VERSION build $BUILD_NUMBER..."
-wget "$JAR_URL" -O server.jar
+# Download Vanilla server jar
+log "${CYAN}[🌐] Downloading Vanilla server jar for version $MC_VERSION..."
+wget "$SERVER_URL" -O server.jar
 if [ $? -ne 0 ]; then
     log "${RED}[❌] Download failed."
     exit 1
@@ -100,7 +123,7 @@ echo "eula=true" > eula.txt
 # Notify user
 clear
 log "==================================================================="
-log "${GREEN}[✅] Minecraft Server $MC_VERSION build $BUILD_NUMBER is set up! 🎉"
+log "${GREEN}[✅] Minecraft Server $MC_VERSION is set up! 🎉"
 log "To start the server, use the following commands:"
 log ""
 log "cd mc/"
