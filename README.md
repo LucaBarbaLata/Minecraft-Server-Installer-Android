@@ -1,11 +1,20 @@
-# ⚠️ Read wiki first on how to install Ubuntu in Termux!
-
 # Minecraft-Server-Installer-Android-Termux
-This script will automate the install process for a minecraft server on Termux Mobile.
 
-# Tutorial
-Before you run the script make sure you installed Ubuntu on Termux (otherwise it wont work). Click here for a full guide on installing Ubuntu on Termux >>> [------------------](https://github.com/LucaBarbaLata/Minecraft-Server-Installer-Android/wiki/How-to-install-Ubuntu-in-Termux) <<<
+⚠️ **Read the Wiki first on how to install Ubuntu in Termux!**
 
-# Command:
+This script automates the installation process for a Minecraft server on Termux Mobile. Follow the tutorial below to get your server up and running in no time.
 
-```curl -sSL https://raw.githubusercontent.com/LucaBarbaLata/Minecraft-Server-Installer-Android/main/main.sh -o /tmp/main.sh && bash /tmp/main.sh```
+## 🚀 Tutorial
+
+Before you run the script, make sure you have Ubuntu installed on Termux. This step is essential for the script to work. 
+
+👉 **Click here for a full guide on installing Ubuntu in Termux:**
+
+[How to install Ubuntu in Termux](https://github.com/LucaBarbaLata/Minecraft-Server-Installer-Android/wiki/How-to-install-Ubuntu-in-Termux)
+
+## 🖥️ Command to Run the Script
+
+Once Ubuntu is installed on Termux, simply run the following command in your Ubuntu terminal to begin the Minecraft server installation:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/LucaBarbaLata/Minecraft-Server-Installer-Android/main/main.sh -o /tmp/main.sh && bash /tmp/main.sh
