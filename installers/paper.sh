@@ -51,12 +51,12 @@ log "==================================================================="
 log "${YELLOW}[⏳] Waiting 3 seconds before starting script"
 sleep 3
 # Ask the user for the Minecraft version
-read -p "Enter the Minecraft version you want to install (default: 1.21.4): " MC_VERSION
-MC_VERSION=${MC_VERSION:-1.21.4}
+read -p "Enter the Minecraft version you want to install (default: 1.21.10): " MC_VERSION
+MC_VERSION=${MC_VERSION:-1.21.10}
 
 # Ask the user for the build number
-read -p "Enter the build number (default: 185): " BUILD_NUMBER
-BUILD_NUMBER=${BUILD_NUMBER:-185}
+read -p "Enter the build number (default: 117): " BUILD_NUMBER
+BUILD_NUMBER=${BUILD_NUMBER:-117}
 
 # Define the download URL
 JAR_URL="https://api.papermc.io/v2/projects/paper/versions/$MC_VERSION/builds/$BUILD_NUMBER/downloads/paper-$MC_VERSION-$BUILD_NUMBER.jar"
