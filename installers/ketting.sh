@@ -52,7 +52,7 @@ log "${YELLOW}[⏳] Waiting 3 seconds before starting script"
 sleep 3
 
 # Define the download URL
-JAR_URL="https://github.com/kettingpowered/kettinglauncher/releases/download/v1.5.1/kettinglauncher-1.5.1.jar"
+JAR_URL="https://github.com/kettingpowered/kettinglauncher/releases/download/v1.6.0/kettinglauncher-1.6.0.jar"
 
 # Update and install necessary packages
 log "${BLUE}[🔧] Updating OS and installing dependencies..."
