@@ -51,6 +51,11 @@ log "==================================================================="
 log "${YELLOW}[⏳] Waiting 3 seconds before starting script"
 sleep 3
 
+# Ask the user for RAM allocation
+read -p "Enter the amount of RAM to allocate in GB (default: 3): " RAM_GB
+RAM_GB=${RAM_GB:-3}
+RAM_MB=$((RAM_GB * 1024))
+
 # Define the download URL
 JAR_URL="https://github.com/kettingpowered/kettinglauncher/releases/download/v1.6.0/kettinglauncher-1.6.0.jar"
 
@@ -80,7 +85,7 @@ fi
 log "${CYAN}[✍️] Creating start script..."
 cat <<EOF > start.sh
 #!/bin/bash
-java -Xms3072M -Xmx3072M --add-modules=jdk.incubator.vector -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4 -XX:InitiatingHeapOccupancyPercent=15 -XX:G1MixedGCLiveThresholdPercent=90 -XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1 -Dusing.aikars.flags=https://mcflags.emc.gs -Daikars.new.flags=true -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=8M -XX:G1ReservePercent=20 -jar server.jar --nogui
+java -Xms${RAM_MB}M -Xmx${RAM_MB}M --add-modules=jdk.incubator.vector -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4 -XX:InitiatingHeapOccupancyPercent=15 -XX:G1MixedGCLiveThresholdPercent=90 -XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1 -Dusing.aikars.flags=https://mcflags.emc.gs -Daikars.new.flags=true -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=8M -XX:G1ReservePercent=20 -jar server.jar --nogui
 EOF
 
 # Give execution permission to start script
