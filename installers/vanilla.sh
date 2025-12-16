@@ -60,8 +60,8 @@ sleep 1
 echo -e "${GREEN}[✅] Done!"
 sleep 1
 # Ask the user for the Minecraft version
-read -p "Enter the Minecraft version you want to install (default: 1.21.4): " MC_VERSION
-MC_VERSION=${MC_VERSION:-1.21.4}
+read -p "Enter the Minecraft version you want to install (default: 1.21.11): " MC_VERSION
+MC_VERSION=${MC_VERSION:-1.21.11}
 # Find the latest release for the requested major version
 LATEST_RELEASE=$(echo "$VERSION_MANIFEST" | jq -r --arg MC_VERSION "$MC_VERSION" '
   .versions[] | select(.id | startswith($MC_VERSION)) | select(.type=="release") | .id' | head -n 1
