@@ -17,4 +17,4 @@ Before you run the script, make sure you have Ubuntu installed on Termux. This s
 Once Ubuntu is installed on Termux, simply run the following command in your Ubuntu terminal to begin the Minecraft server installation:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/LucaBarbaLata/Minecraft-Server-Installer-Android/main/main.sh -o /tmp/main.sh && bash /tmp/main.sh
+curl -sSL https://raw.githubusercontent.com/LucaBarbaLata/Minecraft-Server-Installer-Android/main/main.sh -o main.sh && chmod +x main.sh && ./main.sh
