@@ -128,7 +128,7 @@ echo "eula=true" > eula.txt
 # Notify user
 clear
 log "==================================================================="
-log "${GREEN}[✅] Minecraft Server $MC_VERSION is set up! 🎉"
+log "${GREEN}[✅] Your Minecraft Server ($MC_VERSION) is set up! 🎉"
 log "To start the server, use the following commands:"
 log ""
 log "cd mc/"
