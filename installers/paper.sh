@@ -51,7 +51,7 @@ check_for_updates() {
 
     local latest_build
     latest_build=$(curl -s "https://api.papermc.io/v2/projects/paper/versions/$SAVED_MC_VERSION/builds" \
-        | jq -r '.builds[-1].build // empty')
+        | jq -r '[.builds[].build] | max | values')
 
     if [ -z "$latest_build" ]; then
         log "${RED}[❌] Could not reach PaperMC API. Check your connection.${RESET}"; exit 1
@@ -121,7 +121,7 @@ done
 
 log "${CYAN}[🔍] Fetching latest build for $MC_VERSION...${RESET}"
 BUILD_NUMBER=$(curl -s "https://api.papermc.io/v2/projects/paper/versions/$MC_VERSION/builds" \
-    | jq -r '.builds[-1].build // empty')
+    | jq -r '[.builds[].build] | max | values')
 
 if [ -z "$BUILD_NUMBER" ]; then
     log "${YELLOW}[⚠️]  Could not fetch build automatically. Please enter it manually.${RESET}"
@@ -411,6 +411,9 @@ download_github() {
 }
 
 install_plugins() {
+    # Flush any leftover newline in stdin from previous reads
+    while read -r -t 0 _ 2>/dev/null; do :; done
+
     log ""
     log "${CYAN}${BOLD}╔══════════════════════════════════════════════════════════════════╗"
     log "║                      🔌  Plugin Installer                        ║"
