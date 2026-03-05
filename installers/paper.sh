@@ -51,7 +51,7 @@ check_for_updates() {
 
     local latest_build
     latest_build=$(curl -s "https://api.papermc.io/v2/projects/paper/versions/$SAVED_MC_VERSION/builds" \
-        | jq -r '[.builds[].build] | max | values')
+        | jq -r '[.builds[].build] | map(tonumber) | max | values')
 
     if [ -z "$latest_build" ]; then
         log "${RED}[❌] Could not reach PaperMC API. Check your connection.${RESET}"; exit 1
@@ -121,7 +121,7 @@ done
 
 log "${CYAN}[🔍] Fetching latest build for $MC_VERSION...${RESET}"
 BUILD_NUMBER=$(curl -s "https://api.papermc.io/v2/projects/paper/versions/$MC_VERSION/builds" \
-    | jq -r '[.builds[].build] | max | values')
+    | jq -r '[.builds[].build] | map(tonumber) | max | values')
 
 if [ -z "$BUILD_NUMBER" ]; then
     log "${YELLOW}[⚠️]  Could not fetch build automatically. Please enter it manually.${RESET}"
@@ -449,9 +449,9 @@ install_plugins() {
     log "${CYAN}[🔌] Installing selected plugins into $SERVER_DIR/plugins/...${RESET}"
     log ""
 
-    # EssentialsX — GitHub (not on Modrinth, only main jar needed)
+    # EssentialsX — Modrinth
     [ "${SELECTED[1]}" == "1" ] && \
-        download_github "EssentialsX/Essentials" "EssentialsX" "^EssentialsX-[0-9].*\.jar$"
+        download_modrinth "essentialsx" "EssentialsX"
 
     # LuckPerms — Modrinth
     [ "${SELECTED[2]}" == "1" ] && \
@@ -481,9 +481,9 @@ install_plugins() {
     [ "${SELECTED[8]}" == "1" ] && \
         download_modrinth "skinsrestorer" "SkinsRestorer"
 
-    # TAB — GitHub (NEZNAMY/TAB, exclude API jar)
+    # TAB — Modrinth
     [ "${SELECTED[9]}" == "1" ] && \
-        download_github "NEZNAMY/TAB" "TAB" "^TAB-[0-9].*\.jar$"
+        download_modrinth "tabreborn" "TAB"
 
     log ""
     log "${GREEN}[✅] Plugin installation complete. Plugins saved to $SERVER_DIR/plugins/${RESET}"
