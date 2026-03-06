@@ -49,11 +49,16 @@ check_for_updates() {
     log "   Current version : ${YELLOW}$SAVED_MC_VERSION${RESET}"
     log "   Current build   : ${YELLOW}$SAVED_BUILD${RESET}"
 
-    local latest_build
-    latest_build=$(curl -s "https://api.papermc.io/v2/projects/paper/versions/$SAVED_MC_VERSION/builds" \
-        | grep -o '"build":[0-9]*' | grep -o '[0-9]*' | sort -n | tail -1)
+    local ua="MCServerInstaller/1.0 (https://github.com/LucaBarbaLata/Minecraft-Server-Installer-Android)"
+    local builds_json
+    builds_json=$(curl -s -H "User-Agent: $ua" \
+        "https://fill.papermc.io/v3/projects/paper/versions/$SAVED_MC_VERSION/builds")
 
-    if [ -z "$latest_build" ]; then
+    local latest_build jar_url
+    latest_build=$(echo "$builds_json" | jq -r '[.[] | select(.channel == "STABLE")] | sort_by(.id) | last | .id')
+    jar_url=$(echo "$builds_json" | jq -r '[.[] | select(.channel == "STABLE")] | sort_by(.id) | last | .downloads."server:default".url')
+
+    if [ -z "$latest_build" ] || [ "$latest_build" == "null" ]; then
         log "${RED}[❌] Could not reach PaperMC API. Check your connection.${RESET}"; exit 1
     fi
 
@@ -61,7 +66,6 @@ check_for_updates() {
         log "${YELLOW}[⬆️]  New build available: $latest_build  (you have $SAVED_BUILD)${RESET}"
         if confirm "Download and install update?" Y; then
             cd "$SERVER_DIR" || exit 1
-            local jar_url="https://api.papermc.io/v2/projects/paper/versions/$SAVED_MC_VERSION/builds/$latest_build/downloads/paper-$SAVED_MC_VERSION-$latest_build.jar"
             log "${CYAN}[⬇️]  Downloading build $latest_build...${RESET}"
             wget --show-progress "$jar_url" -O server.jar
             if [ $? -eq 0 ]; then
@@ -119,11 +123,14 @@ while true; do
     else log "${RED}   Invalid format. Use e.g. 1.21.1${RESET}"; fi
 done
 
-log "${CYAN}[🔍] Fetching latest build for $MC_VERSION...${RESET}"
-BUILD_NUMBER=$(curl -s "https://api.papermc.io/v2/projects/paper/versions/$MC_VERSION/builds" \
-    | grep -o '"build":[0-9]*' | grep -o '[0-9]*' | sort -n | tail -1)
+log "${CYAN}[🔍] Fetching latest stable build for $MC_VERSION...${RESET}"
+UA="MCServerInstaller/1.0 (https://github.com/LucaBarbaLata/Minecraft-Server-Installer-Android)"
+BUILDS_JSON=$(curl -s -H "User-Agent: $UA" \
+    "https://fill.papermc.io/v3/projects/paper/versions/$MC_VERSION/builds")
+BUILD_NUMBER=$(echo "$BUILDS_JSON" | jq -r '[.[] | select(.channel == "STABLE")] | sort_by(.id) | last | .id')
+JAR_URL=$(echo "$BUILDS_JSON" | jq -r '[.[] | select(.channel == "STABLE")] | sort_by(.id) | last | .downloads."server:default".url')
 
-if [ -z "$BUILD_NUMBER" ]; then
+if [ -z "$BUILD_NUMBER" ] || [ "$BUILD_NUMBER" == "null" ]; then
     log "${YELLOW}[⚠️]  Could not fetch build automatically. Please enter it manually.${RESET}"
     log "   Browse builds at: ${CYAN}https://papermc.io/downloads/paper${RESET}"
     while true; do
@@ -185,7 +192,6 @@ cd "$SERVER_DIR" || { log "${RED}[❌] Could not enter $SERVER_DIR. Exiting.${RE
 # ══════════════════════════════════════════════════════════════════════════════
 # Download PaperMC
 # ══════════════════════════════════════════════════════════════════════════════
-JAR_URL="https://api.papermc.io/v2/projects/paper/versions/$MC_VERSION/builds/$BUILD_NUMBER/downloads/paper-$MC_VERSION-$BUILD_NUMBER.jar"
 log ""
 log "${CYAN}[🌐] Downloading PaperMC $MC_VERSION build $BUILD_NUMBER...${RESET}"
 wget --show-progress "$JAR_URL" -O server.jar
@@ -497,4 +503,201 @@ install_plugins
 log ""
 log "${YELLOW}${BOLD}[🔄] Auto-Restart${RESET}"
 log "   ${WHITE}Note: systemd is unavailable in proot Ubuntu on Termux."
-log "   This feature uses a bash loop in the server run sc
+log "   This feature uses a bash loop in the server run script instead.${RESET}"
+log ""
+AUTORESTART=false
+if confirm "Enable auto-restart on crash or /stop?" N; then AUTORESTART=true; fi
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Screen / tmux
+# ══════════════════════════════════════════════════════════════════════════════
+log ""
+log "${YELLOW}${BOLD}[📺] Session Manager${RESET}"
+log "   ${WHITE}Running inside screen or tmux keeps your server alive"
+log "   after closing the Termux window.${RESET}"
+log ""
+log "   [1] screen  —  Classic terminal multiplexer"
+log "   [2] tmux    —  Modern terminal multiplexer"
+log "   [3] None    —  Run directly in the terminal"
+log ""
+while true; do
+    read -p "$(echo -e "   Choose [3]: ")" SESSION_CHOICE
+    SESSION_CHOICE=${SESSION_CHOICE:-3}
+    case $SESSION_CHOICE in
+        1) SESSION_MANAGER="screen"; break ;;
+        2) SESSION_MANAGER="tmux";   break ;;
+        3) SESSION_MANAGER="none";   break ;;
+        *) log "   ${RED}Enter 1, 2, or 3.${RESET}" ;;
+    esac
+done
+
+if [ "$SESSION_MANAGER" != "none" ]; then
+    log "${CYAN}[📦] Installing $SESSION_MANAGER...${RESET}"
+    run_command "apt-get install -y $SESSION_MANAGER"
+    check_success "Installing $SESSION_MANAGER"
+    log "${GREEN}[✅] $SESSION_MANAGER installed.${RESET}"
+fi
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Build server_run.sh  (core Java command, with or without auto-restart loop)
+# start.sh wraps server_run.sh with the chosen session manager
+# ══════════════════════════════════════════════════════════════════════════════
+log ""
+log "${CYAN}[✍️]  Generating server scripts...${RESET}"
+
+SERVER_RUN="$SERVER_DIR/server_run.sh"
+
+# Write the core run script
+{
+    echo '#!/bin/bash'
+    echo "cd \"$SERVER_DIR\""
+    echo ""
+    if [ "$AUTORESTART" == true ]; then
+        echo 'while true; do'
+        echo "    java -Xms${RAM_MB}M -Xmx${RAM_MB}M \\"
+        echo "      --add-modules=jdk.incubator.vector \\"
+        echo "      -XX:+UseG1GC \\"
+        echo "      -XX:+ParallelRefProcEnabled \\"
+        echo "      -XX:MaxGCPauseMillis=200 \\"
+        echo "      -XX:+UnlockExperimentalVMOptions \\"
+        echo "      -XX:+DisableExplicitGC \\"
+        echo "      -XX:+AlwaysPreTouch \\"
+        echo "      -XX:G1HeapWastePercent=5 \\"
+        echo "      -XX:G1MixedGCCountTarget=4 \\"
+        echo "      -XX:InitiatingHeapOccupancyPercent=15 \\"
+        echo "      -XX:G1MixedGCLiveThresholdPercent=90 \\"
+        echo "      -XX:G1RSetUpdatingPauseTimePercent=5 \\"
+        echo "      -XX:SurvivorRatio=32 \\"
+        echo "      -XX:+PerfDisableSharedMem \\"
+        echo "      -XX:MaxTenuringThreshold=1 \\"
+        echo "      -Dusing.aikars.flags=https://mcflags.emc.gs \\"
+        echo "      -Daikars.new.flags=true \\"
+        echo "      -XX:G1NewSizePercent=30 \\"
+        echo "      -XX:G1MaxNewSizePercent=40 \\"
+        echo "      -XX:G1HeapRegionSize=8M \\"
+        echo "      -XX:G1ReservePercent=20 \\"
+        echo "      -jar server.jar --nogui"
+        echo '    echo ""'
+        echo '    echo "[🔄] Server stopped. Restarting in 5 seconds... (Ctrl+C to cancel)"'
+        echo '    sleep 5'
+        echo 'done'
+    else
+        echo "java -Xms${RAM_MB}M -Xmx${RAM_MB}M \\"
+        echo "  --add-modules=jdk.incubator.vector \\"
+        echo "  -XX:+UseG1GC \\"
+        echo "  -XX:+ParallelRefProcEnabled \\"
+        echo "  -XX:MaxGCPauseMillis=200 \\"
+        echo "  -XX:+UnlockExperimentalVMOptions \\"
+        echo "  -XX:+DisableExplicitGC \\"
+        echo "  -XX:+AlwaysPreTouch \\"
+        echo "  -XX:G1HeapWastePercent=5 \\"
+        echo "  -XX:G1MixedGCCountTarget=4 \\"
+        echo "  -XX:InitiatingHeapOccupancyPercent=15 \\"
+        echo "  -XX:G1MixedGCLiveThresholdPercent=90 \\"
+        echo "  -XX:G1RSetUpdatingPauseTimePercent=5 \\"
+        echo "  -XX:SurvivorRatio=32 \\"
+        echo "  -XX:+PerfDisableSharedMem \\"
+        echo "  -XX:MaxTenuringThreshold=1 \\"
+        echo "  -Dusing.aikars.flags=https://mcflags.emc.gs \\"
+        echo "  -Daikars.new.flags=true \\"
+        echo "  -XX:G1NewSizePercent=30 \\"
+        echo "  -XX:G1MaxNewSizePercent=40 \\"
+        echo "  -XX:G1HeapRegionSize=8M \\"
+        echo "  -XX:G1ReservePercent=20 \\"
+        echo "  -jar server.jar --nogui"
+    fi
+} > "$SERVER_RUN"
+chmod +x "$SERVER_RUN"
+
+# Write start.sh — wraps server_run.sh in the chosen session manager
+case $SESSION_MANAGER in
+    screen)
+        cat > "$SERVER_DIR/start.sh" <<'STARTEOF'
+#!/bin/bash
+SESSION="mcserver"
+if screen -list | grep -q "$SESSION"; then
+    echo "[⚠️]  Server is already running!"
+    echo "      Attach to it with: screen -r $SESSION"
+    exit 1
+fi
+echo "[🚀] Starting server in screen session '$SESSION'..."
+screen -S "$SESSION" "$HOME/mc/server_run.sh"
+STARTEOF
+        cat > "$SERVER_DIR/attach.sh" <<'ATTACHEOF'
+#!/bin/bash
+screen -r mcserver
+ATTACHEOF
+        chmod +x "$SERVER_DIR/attach.sh"
+        log "${GREEN}   attach.sh created — use it to re-attach to the console.${RESET}"
+        ;;
+    tmux)
+        cat > "$SERVER_DIR/start.sh" <<'STARTEOF'
+#!/bin/bash
+SESSION="mcserver"
+if tmux has-session -t "$SESSION" 2>/dev/null; then
+    echo "[⚠️]  Server is already running!"
+    echo "      Attach to it with: tmux attach -t $SESSION"
+    exit 1
+fi
+echo "[🚀] Starting server in tmux session '$SESSION'..."
+tmux new-session -d -s "$SESSION" "$HOME/mc/server_run.sh"
+echo "[✅] Server started. Attach with: tmux attach -t $SESSION"
+STARTEOF
+        cat > "$SERVER_DIR/attach.sh" <<'ATTACHEOF'
+#!/bin/bash
+tmux attach -t mcserver
+ATTACHEOF
+        chmod +x "$SERVER_DIR/attach.sh"
+        log "${GREEN}   attach.sh created — use it to re-attach to the console.${RESET}"
+        ;;
+    none)
+        cat > "$SERVER_DIR/start.sh" <<STARTEOF
+#!/bin/bash
+exec "$SERVER_DIR/server_run.sh"
+STARTEOF
+        ;;
+esac
+chmod +x "$SERVER_DIR/start.sh"
+log "${GREEN}[✅] start.sh and server_run.sh created.${RESET}"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# EULA
+# ══════════════════════════════════════════════════════════════════════════════
+echo "eula=true" > "$SERVER_DIR/eula.txt"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Save server info  (used by -update flag)
+# ══════════════════════════════════════════════════════════════════════════════
+cat <<EOF > "$SERVER_DIR/.server_info"
+SAVED_MC_VERSION=$MC_VERSION
+SAVED_BUILD=$BUILD_NUMBER
+EOF
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Done
+# ══════════════════════════════════════════════════════════════════════════════
+clear
+log "${CYAN}${BOLD}=========================================================="
+log "${GREEN}[✅] Minecraft Server ($MC_VERSION build $BUILD_NUMBER) is ready! 🎉${RESET}"
+log ""
+log "   ${WHITE}RAM allocated  : ${YELLOW}${RAM_GB}GB (${RAM_MB}MB)${RESET}"
+log "   ${WHITE}Server folder  : ${YELLOW}$SERVER_DIR${RESET}"
+log "   ${WHITE}Session manager: ${YELLOW}$SESSION_MANAGER${RESET}"
+log "   ${WHITE}Auto-restart   : ${YELLOW}$AUTORESTART${RESET}"
+log ""
+log "${WHITE}Start the server:${RESET}"
+log "   ${YELLOW}cd ~/mc && ./start.sh${RESET}"
+if [ "$SESSION_MANAGER" != "none" ]; then
+log ""
+log "${WHITE}Re-attach to server console:${RESET}"
+log "   ${YELLOW}cd ~/mc && ./attach.sh${RESET}"
+fi
+log ""
+log "${WHITE}Check for PaperMC updates later:${RESET}"
+log "   ${YELLOW}bash install_mc.sh -update${RESET}"
+log ""
+log "${WHITE}Browse plugins : ${CYAN}https://modrinth.com/plugins${RESET}"
+log "${WHITE}Browse builds  : ${CYAN}https://papermc.io/downloads/paper${RESET}"
+log ""
+log "${GREEN}Enjoy your server! 🚀${RESET}"
+log "${CYAN}${BOLD}==========================================================${RESET}"
