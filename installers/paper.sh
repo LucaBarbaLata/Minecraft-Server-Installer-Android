@@ -489,7 +489,7 @@ install_plugins() {
 
     # TAB — Modrinth
     [ "${SELECTED[9]}" == "1" ] && \
-        download_modrinth "tabreborn" "TAB"
+        download_modrinth "tab-was-taken" "TAB"
 
     log ""
     log "${GREEN}[✅] Plugin installation complete. Plugins saved to $SERVER_DIR/plugins/${RESET}"
