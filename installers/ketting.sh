@@ -22,9 +22,9 @@ done
 # Function to execute commands with or without verbosity
 run_command() {
     if [ "$VERBOSE" == true ]; then
-        $1 # Run with full output
+        bash -c "$1"
     else
-        $1 &>/dev/null # Run silently
+        bash -c "$1" &>/dev/null
     fi
 }
 
@@ -51,13 +51,25 @@ log "==================================================================="
 log "${YELLOW}[⏳] Waiting 3 seconds before starting script"
 sleep 3
 
+# Install jq and curl early — needed for GitHub API call
+apt-get install -y curl jq &>/dev/null
+
 # Ask the user for RAM allocation
 read -p "Enter the amount of RAM to allocate in GB (default: 3): " RAM_GB
 RAM_GB=${RAM_GB:-3}
 RAM_MB=$((RAM_GB * 1024))
 
-# Define the download URL
-JAR_URL="https://github.com/kettingpowered/kettinglauncher/releases/download/v1.6.0/kettinglauncher-1.6.0.jar"
+# Fetch the latest KettingLauncher release from GitHub
+log "${CYAN}[🔍] Fetching latest KettingLauncher release...${RESET}"
+KETTING_RELEASE=$(curl -s "https://api.github.com/repos/kettingpowered/KettingLauncher/releases/latest")
+KETTING_VERSION=$(echo "$KETTING_RELEASE" | jq -r '.tag_name')
+JAR_URL=$(echo "$KETTING_RELEASE" | jq -r '.assets[] | select(.name | endswith(".jar")) | .browser_download_url' | head -1)
+
+if [ -z "$JAR_URL" ] || [ "$JAR_URL" == "null" ]; then
+    log "${RED}[❌] Could not fetch KettingLauncher release. Check your connection.${RESET}"
+    exit 1
+fi
+log "${GREEN}[✅] Latest version: $KETTING_VERSION${RESET}"
 
 # Update and install necessary packages
 log "${BLUE}[🔧] Updating OS and installing dependencies..."

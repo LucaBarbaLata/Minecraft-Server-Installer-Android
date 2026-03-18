@@ -22,9 +22,9 @@ done
 # Function to execute commands with or without verbosity
 run_command() {
     if [ "$VERBOSE" == true ]; then
-        $1 # Run with full output
+        bash -c "$1"
     else
-        $1 &>/dev/null # Run silently
+        bash -c "$1" &>/dev/null
     fi
 }
 
@@ -60,8 +60,12 @@ sleep 1
 echo -e "${GREEN}[✅] Done!"
 sleep 1
 # Ask the user for the Minecraft version
-read -p "Enter the Minecraft version you want to install (default: 1.21.11): " MC_VERSION
-MC_VERSION=${MC_VERSION:-1.21.11}
+while true; do
+    read -p "Enter the Minecraft version you want to install (default: 1.21.1): " MC_VERSION
+    MC_VERSION=${MC_VERSION:-1.21.1}
+    if [[ "$MC_VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then break
+    else log "${RED}[❌] Invalid format. Use e.g. 1.21.1${RESET}"; fi
+done
 
 # Ask the user for RAM allocation
 read -p "Enter the amount of RAM to allocate in GB (default: 3): " RAM_GB
