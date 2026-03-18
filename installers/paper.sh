@@ -11,7 +11,7 @@ VERBOSE=false
 for arg in "$@"; do [ "$arg" == "-verbose" ] && VERBOSE=true; done
 
 run_command() {
-    if [ "$VERBOSE" == true ]; then eval "$1"; else eval "$1" &>/dev/null; fi
+    if [ "$VERBOSE" == true ]; then bash -c "$1"; else bash -c "$1" &>/dev/null; fi
 }
 
 log() { echo -e "$1"; }
