@@ -36,6 +36,97 @@ log() {
     echo -e "$1"
 }
 
+# ══════════════════════════════════════════════════════════════════════════════
+# Java runtime installer  (picks the right JRE for the Minecraft version)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Minecraft version → required Java major version.
+#   ≤1.16 → 8  |  1.17–1.20.4 → 17  |  1.20.5–1.21.x → 21  |  26.1+ (calendar) → 25
+mc_java_version() {
+    local v="$1" major minor patch
+    major=$(echo "$v" | cut -d. -f1)
+    minor=$(echo "$v" | cut -d. -f2); minor=${minor:-0}
+    patch=$(echo "$v" | cut -d. -f3); patch=${patch:-0}
+    if [ "$major" != "1" ]; then echo 25; return; fi
+    if   [ "$minor" -le 16 ]; then echo 8
+    elif [ "$minor" -le 19 ]; then echo 17
+    elif [ "$minor" -eq 20 ]; then
+        if [ "$patch" -ge 5 ]; then echo 21; else echo 17; fi
+    else echo 21
+    fi
+}
+
+# Detected Java major version (handles both the old "1.8" and new "21" schemes).
+java_major() {
+    local ver
+    ver=$(java -version 2>&1 | head -1 | grep -oE '[0-9]+(\.[0-9]+)+' | head -1)
+    [ -z "$ver" ] && return 1
+    local a=${ver%%.*}
+    if [ "$a" = "1" ]; then ver=${ver#*.}; echo "${ver%%.*}"; else echo "$a"; fi
+}
+
+# Returns 0 if an installed Java runtime is at least major version $1.
+java_satisfies() {
+    local want="$1" cur
+    command -v java &>/dev/null || return 1
+    cur=$(java_major) || return 1
+    [ "$cur" -ge "$want" ]
+}
+
+# Add the Eclipse Temurin (Adoptium) apt repo — provides arm64 builds of newer
+# Java releases that Ubuntu's own repos don't ship yet (e.g. Java 25 on 24.04).
+setup_adoptium_repo() {
+    run_command "apt-get install -y wget apt-transport-https gnupg ca-certificates"
+    local codename
+    codename=$(. /etc/os-release 2>/dev/null; echo "${VERSION_CODENAME:-noble}")
+    case "$codename" in jammy|noble) ;; *) codename="noble" ;; esac
+    run_command "mkdir -p /etc/apt/keyrings"
+    run_command "wget -qO /tmp/adoptium.gpg.key https://packages.adoptium.net/artifactory/api/gpg/key/public" || return 1
+    run_command "gpg --dearmor --yes -o /etc/apt/keyrings/adoptium.gpg /tmp/adoptium.gpg.key" || return 1
+    echo "deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb $codename main" \
+        > /etc/apt/sources.list.d/adoptium.list
+    run_command "apt-get update -y"
+}
+
+# install_java <minecraft-version> — installs a JRE that satisfies that version.
+install_java() {
+    local mc_version="$1" want
+    want=$(mc_java_version "$mc_version")
+
+    if java_satisfies "$want"; then
+        log "${GREEN}[✅] Java $(java_major) already present ($(java -version 2>&1 | head -1)).${RESET}"
+        return 0
+    fi
+
+    log "${BLUE}[☕] Minecraft $mc_version needs Java $want — installing openjdk-${want}-jre..."
+    run_command "apt-get update -y"
+    run_command "apt-get install -y openjdk-${want}-jre"
+    if java_satisfies "$want"; then
+        log "${GREEN}[✅] $(java -version 2>&1 | head -1)"; return 0
+    fi
+
+    log "${YELLOW}[⚠️]  openjdk-${want}-jre not offered by the distro. Trying Eclipse Temurin..."
+    if setup_adoptium_repo; then
+        run_command "apt-get install -y temurin-${want}-jre"
+        if java_satisfies "$want"; then
+            log "${GREEN}[✅] $(java -version 2>&1 | head -1)"; return 0
+        fi
+    fi
+
+    log "${YELLOW}[⚠️]  Couldn't install Java $want. Falling back to the newest JRE available..."
+    local pkg
+    for pkg in openjdk-21-jre openjdk-17-jre default-jre; do
+        run_command "apt-get install -y $pkg"
+        if command -v java &>/dev/null; then
+            log "${YELLOW}[⚠️]  Installed '$pkg' ($(java -version 2>&1 | head -1)). Minecraft $mc_version may require Java $want; the server could fail to start until Java is upgraded."
+            return 0
+        fi
+    done
+
+    log "${RED}[❌] Could not install any Java runtime. Exiting."
+    exit 1
+}
+
 # Display ASCII banner with color
 clear
 log "${CYAN}=================================================================================================================================="
@@ -98,9 +189,7 @@ log "${BLUE}[🔧] Updating OS and installing dependencies..."
 run_command "apt-get update -y && apt-get upgrade -y"
 run_command "apt-get install sudo mc net-tools nano zip wget -y"
 run_command "apt-get install -y build-essential software-properties-common"
-run_command "add-apt-repository -y ppa:openjdk-r/ppa"
-run_command "apt-get update -y"
-run_command "apt-get install -y openjdk-21-jdk"
+install_java "$LATEST_RELEASE"
 
 # Create Minecraft server directory
 log "${BLUE}[📁] Creating Minecraft server directory..."
@@ -117,9 +206,17 @@ fi
 
 # Create start script
 log "${CYAN}[✍️] Creating start script..."
+
+# jdk.incubator.vector isn't bundled in every JRE — only pass the flag if the
+# module exists, otherwise the server dies with "Module jdk.incubator.vector not found".
+VECTOR_FLAG=""
+if java --list-modules 2>/dev/null | grep -q '^jdk.incubator.vector'; then
+    VECTOR_FLAG="--add-modules=jdk.incubator.vector "
+fi
+
 cat <<EOF > start.sh
 #!/bin/bash
-java -Xms${RAM_MB}M -Xmx${RAM_MB}M --add-modules=jdk.incubator.vector -XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4 -XX:InitiatingHeapOccupancyPercent=15 -XX:G1MixedGCLiveThresholdPercent=90 -XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1 -Dusing.aikars.flags=https://mcflags.emc.gs -Daikars.new.flags=true -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=8M -XX:G1ReservePercent=20 -jar server.jar --nogui
+java -Xms${RAM_MB}M -Xmx${RAM_MB}M ${VECTOR_FLAG}-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4 -XX:InitiatingHeapOccupancyPercent=15 -XX:G1MixedGCLiveThresholdPercent=90 -XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1 -Dusing.aikars.flags=https://mcflags.emc.gs -Daikars.new.flags=true -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=8M -XX:G1ReservePercent=20 -jar server.jar --nogui
 EOF
 
 # Give execution permission to start script

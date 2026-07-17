@@ -31,6 +31,98 @@ confirm() {
     [[ "$answer" =~ ^[Yy]$ ]]
 }
 
+# ══════════════════════════════════════════════════════════════════════════════
+# Java runtime installer  (picks the right JRE for the Minecraft version)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Minecraft version → required Java major version.
+#   ≤1.16 → 8  |  1.17–1.20.4 → 17  |  1.20.5–1.21.x → 21  |  26.1+ (calendar) → 25
+mc_java_version() {
+    local v="$1" major minor patch
+    major=$(echo "$v" | cut -d. -f1)
+    minor=$(echo "$v" | cut -d. -f2); minor=${minor:-0}
+    patch=$(echo "$v" | cut -d. -f3); patch=${patch:-0}
+    # Calendar-based versioning (26.1, 27.x, …) uses the newest Java we support.
+    if [ "$major" != "1" ]; then echo 25; return; fi
+    if   [ "$minor" -le 16 ]; then echo 8
+    elif [ "$minor" -le 19 ]; then echo 17
+    elif [ "$minor" -eq 20 ]; then
+        if [ "$patch" -ge 5 ]; then echo 21; else echo 17; fi
+    else echo 21
+    fi
+}
+
+# Detected Java major version (handles both the old "1.8" and new "21" schemes).
+java_major() {
+    local ver
+    ver=$(java -version 2>&1 | head -1 | grep -oE '[0-9]+(\.[0-9]+)+' | head -1)
+    [ -z "$ver" ] && return 1
+    local a=${ver%%.*}
+    if [ "$a" = "1" ]; then ver=${ver#*.}; echo "${ver%%.*}"; else echo "$a"; fi
+}
+
+# Returns 0 if an installed Java runtime is at least major version $1.
+java_satisfies() {
+    local want="$1" cur
+    command -v java &>/dev/null || return 1
+    cur=$(java_major) || return 1
+    [ "$cur" -ge "$want" ]
+}
+
+# Add the Eclipse Temurin (Adoptium) apt repo — provides arm64 builds of newer
+# Java releases that Ubuntu's own repos don't ship yet (e.g. Java 25 on 24.04).
+setup_adoptium_repo() {
+    run_command "apt-get install -y wget apt-transport-https gnupg ca-certificates"
+    local codename
+    codename=$(. /etc/os-release 2>/dev/null; echo "${VERSION_CODENAME:-noble}")
+    case "$codename" in jammy|noble) ;; *) codename="noble" ;; esac
+    run_command "mkdir -p /etc/apt/keyrings"
+    run_command "wget -qO /tmp/adoptium.gpg.key https://packages.adoptium.net/artifactory/api/gpg/key/public" || return 1
+    run_command "gpg --dearmor --yes -o /etc/apt/keyrings/adoptium.gpg /tmp/adoptium.gpg.key" || return 1
+    echo "deb [signed-by=/etc/apt/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb $codename main" \
+        > /etc/apt/sources.list.d/adoptium.list
+    run_command "apt-get update -y"
+}
+
+# install_java <minecraft-version> — installs a JRE that satisfies that version.
+install_java() {
+    local mc_version="$1" want
+    want=$(mc_java_version "$mc_version")
+
+    if java_satisfies "$want"; then
+        log "${GREEN}[✅] Java $(java_major) already present ($(java -version 2>&1 | head -1)).${RESET}"
+        return 0
+    fi
+
+    log "${BLUE}[☕] Minecraft $mc_version needs Java $want — installing openjdk-${want}-jre...${RESET}"
+    run_command "apt-get update -y"
+    run_command "apt-get install -y openjdk-${want}-jre"
+    if java_satisfies "$want"; then
+        log "${GREEN}[✅] $(java -version 2>&1 | head -1)${RESET}"; return 0
+    fi
+
+    log "${YELLOW}[⚠️]  openjdk-${want}-jre not offered by the distro. Trying Eclipse Temurin...${RESET}"
+    if setup_adoptium_repo; then
+        run_command "apt-get install -y temurin-${want}-jre"
+        if java_satisfies "$want"; then
+            log "${GREEN}[✅] $(java -version 2>&1 | head -1)${RESET}"; return 0
+        fi
+    fi
+
+    log "${YELLOW}[⚠️]  Couldn't install Java $want. Falling back to the newest JRE available...${RESET}"
+    local pkg
+    for pkg in openjdk-21-jre openjdk-17-jre default-jre; do
+        run_command "apt-get install -y $pkg"
+        if command -v java &>/dev/null; then
+            log "${YELLOW}[⚠️]  Installed '$pkg' ($(java -version 2>&1 | head -1)). Minecraft $mc_version may require Java $want; the server could fail to start until Java is upgraded.${RESET}"
+            return 0
+        fi
+    done
+
+    log "${RED}[❌] Could not install any Java runtime. Exiting.${RESET}"
+    exit 1
+}
+
 SERVER_DIR="$HOME/mc"
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -162,13 +254,7 @@ log "${BLUE}[🔧] Updating Ubuntu and installing dependencies...${RESET}"
 run_command "apt-get upgrade -y"
 run_command "apt-get install -y sudo mc net-tools nano zip build-essential software-properties-common"
 check_success "Installing base packages"
-run_command "apt-get install -y openjdk-21-jdk"
-check_success "Installing Java"
-
-if ! command -v java &>/dev/null; then
-    log "${RED}[❌] Java not found in PATH after installation. Exiting.${RESET}"; exit 1
-fi
-log "${GREEN}[✅] $(java -version 2>&1 | head -1)${RESET}"
+install_java "$MC_VERSION"
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Server directory  (with optional backup)
@@ -377,43 +463,81 @@ configure_server_properties
 # Plugin installer
 # ══════════════════════════════════════════════════════════════════════════════
 
-# Download from Modrinth by project slug
+# Download a plugin from Modrinth by project slug.  Resolves the newest file that
+# targets $MC_VERSION exactly, then any build in the same major.minor family
+# (e.g. 1.21.x), then the latest build — across all Paper-compatible loaders.
 download_modrinth() {
     local slug=$1 name=$2
-    log "${CYAN}   [⬇️]  $name (Modrinth)...${RESET}"
-    local api_url="https://api.modrinth.com/v2/project/$slug/version?loaders=%5B%22paper%22%5D&game_versions=%5B%22$MC_VERSION%22%5D"
-    local url
-    url=$(curl -s "$api_url" | jq -r '.[0].files[0].url // empty')
+    log "${CYAN}   [⬇️]  $name...${RESET}"
+    local loaders='%5B%22paper%22%2C%22purpur%22%2C%22folia%22%2C%22spigot%22%2C%22bukkit%22%5D'
+    local mm; mm=$(echo "$MC_VERSION" | cut -d. -f1-2)
+    local json url
+    json=$(curl -s "https://api.modrinth.com/v2/project/$slug/version?loaders=$loaders")
+    url=$(echo "$json" | jq -r --arg mc "$MC_VERSION" --arg mm "$mm" '
+        if type != "array" then empty else
+          ( [ .[] | select(.game_versions | index($mc)) ][0]
+            // [ .[] | select(.game_versions | any(startswith($mm))) ][0]
+            // .[0] ) as $v
+          | if $v == null then empty
+            else ( $v.files | map(select(.primary)) | .[0] // $v.files[0] ).url end
+        end' 2>/dev/null)
 
-    # Fallback: try without version filter (gets latest regardless of MC version)
-    if [ -z "$url" ]; then
-        log "   ${YELLOW}No exact version match, trying latest release...${RESET}"
-        url=$(curl -s "https://api.modrinth.com/v2/project/$slug/version" \
-            | jq -r '.[0].files[0].url // empty')
+    if [ -z "$url" ] || [ "$url" == "null" ]; then
+        log "   ${RED}[❌] No Paper-compatible build of $name found for $MC_VERSION. Skipping.${RESET}"; return 1
     fi
-
-    if [ -z "$url" ]; then
-        log "   ${RED}[❌] Could not find $name on Modrinth. Skipping.${RESET}"; return 1
+    if wget -q --show-progress "$url" -P "$SERVER_DIR/plugins/"; then
+        log "${GREEN}   [✅] $name installed.${RESET}"
+    else
+        log "${RED}   [❌] $name download failed.${RESET}"; return 1
     fi
-    wget -q --show-progress "$url" -P "$SERVER_DIR/plugins/"
-    if [ $? -eq 0 ]; then log "${GREEN}   [✅] $name installed.${RESET}"
-    else log "${RED}   [❌] $name download failed.${RESET}"; fi
 }
 
-# Download from GitHub releases by repo + filename regex pattern
-download_github() {
-    local repo=$1 name=$2 pattern=$3
-    log "${CYAN}   [⬇️]  $name (GitHub)...${RESET}"
-    local url
-    url=$(curl -s "https://api.github.com/repos/$repo/releases/latest" \
-        | jq -r ".assets[] | select(.name | test(\"$pattern\")) | .browser_download_url" | head -1)
+# Arrays populated with the plugin menu (index-aligned).
+PLUGIN_SLUGS=(); PLUGIN_TITLES=(); PLUGIN_DESCS=()
 
-    if [ -z "$url" ]; then
-        log "   ${RED}[❌] Could not find $name on GitHub. Skipping.${RESET}"; return 1
-    fi
-    wget -q --show-progress "$url" -P "$SERVER_DIR/plugins/"
-    if [ $? -eq 0 ]; then log "${GREEN}   [✅] $name installed.${RESET}"
-    else log "${RED}   [❌] $name download failed.${RESET}"; fi
+# Curated fallback list, used only if the Modrinth API can't be reached.
+load_static_plugins() {
+    PLUGIN_SLUGS=(essentialsx luckperms veinminer viaversion viabackwards auraskills worldedit skinsrestorer tab-was-taken)
+    PLUGIN_TITLES=(EssentialsX LuckPerms VeinMiner ViaVersion ViaBackwards AuraSkills WorldEdit SkinsRestorer TAB)
+    PLUGIN_DESCS=(
+        "Core commands, economy, /home, /warp"
+        "Ranks & permissions management"
+        "Mine entire ore veins at once"
+        "Let newer clients connect to your server"
+        "Let older clients connect too"
+        "RPG skill progression system"
+        "Powerful in-game world editor"
+        "Custom player skins for offline mode"
+        "Custom tab list, nametags & scoreboards"
+    )
+}
+
+# Fetch the most-downloaded Paper plugins available for $MC_VERSION from Modrinth.
+# Tries the exact version, then the major.minor family, then any version.
+fetch_popular_plugins() {
+    local mm; mm=$(echo "$MC_VERSION" | cut -d. -f1-2)
+    local base="https://api.modrinth.com/v2/search"
+    local common="%5B%22project_type%3Aplugin%22%5D%2C%5B%22categories%3Apaper%22%5D"
+    local json count
+    local facets
+    for ver in "$MC_VERSION" "$mm" ""; do
+        if [ -n "$ver" ]; then
+            facets="%5B${common}%2C%5B%22versions%3A${ver}%22%5D%5D"
+        else
+            facets="%5B${common}%5D"
+        fi
+        json=$(curl -s "${base}?facets=${facets}&index=downloads&limit=15")
+        count=$(echo "$json" | jq -r 'if type=="object" and (.hits|type=="array") then (.hits|length) else 0 end' 2>/dev/null)
+        [ -n "$count" ] && [ "$count" -gt 0 ] && break
+    done
+    { [ -z "$count" ] || [ "$count" -eq 0 ]; } && return 1
+
+    while IFS=$'\t' read -r slug title desc; do
+        [ -z "$slug" ] && continue
+        PLUGIN_SLUGS+=("$slug"); PLUGIN_TITLES+=("$title"); PLUGIN_DESCS+=("$desc")
+    done < <(echo "$json" | jq -r '.hits[] | [.slug, .title, ((.description // "") | gsub("[\r\n]+";" ") | .[:62])] | @tsv' 2>/dev/null)
+
+    [ "${#PLUGIN_SLUGS[@]}" -gt 0 ]
 }
 
 install_plugins() {
@@ -421,75 +545,53 @@ install_plugins() {
     while read -r -t 0 _ 2>/dev/null; do :; done
 
     log ""
-    log "${CYAN}${BOLD}╔══════════════════════════════════════════════════════════════════╗"
-    log "║                      🔌  Plugin Installer                        ║"
-    log "╠══════════════════════════════════════════════════════════════════╣"
-    log "║  [1] EssentialsX     - Core commands, economy, /home, /warp     ║"
-    log "║  [2] LuckPerms       - Ranks & permissions management           ║"
-    log "║  [3] VeinMiner       - Mine entire ore veins at once            ║"
-    log "║  [4] ViaVersion      - Let newer clients connect to your server ║"
-    log "║  [5] ViaBackwards    - Let older clients connect too            ║"
-    log "║  [6] AuraSkills      - RPG skill progression system             ║"
-    log "║  [7] WorldEdit       - Powerful in-game world editor            ║"
-    log "║  [8] SkinsRestorer   - Custom player skins for offline mode     ║"
-    log "║  [9] TAB             - Custom tab list, nametags & scoreboards  ║"
-    log "║                                                                  ║"
-    log "║  [A] Install all plugins      [N] Skip plugin installation      ║"
-    log "╚══════════════════════════════════════════════════════════════════╝${RESET}"
+    log "${CYAN}[🔍] Fetching the most popular Paper plugins from Modrinth...${RESET}"
+    if ! fetch_popular_plugins; then
+        log "${YELLOW}[⚠️]  Couldn't reach Modrinth — using the built-in plugin list.${RESET}"
+        load_static_plugins
+    fi
+
     log ""
-    read -p "$(echo -e "${WHITE}Enter numbers separated by spaces (e.g. 1 2 4 5), or A/N: ${RESET}")" PLUGIN_INPUT
+    log "${CYAN}${BOLD}╔══════════════════════════════════════════════════════════════════╗"
+    log "║                      🔌  Plugin Installer                         ║"
+    log "╚══════════════════════════════════════════════════════════════════╝${RESET}"
+    local i num_str padded
+    for i in "${!PLUGIN_SLUGS[@]}"; do
+        printf -v num_str "%2d" "$((i + 1))"
+        printf -v padded "%-22s" "${PLUGIN_TITLES[$i]}"
+        log "   ${CYAN}[${num_str}]${RESET} ${BOLD}${padded}${RESET}${WHITE}${PLUGIN_DESCS[$i]}${RESET}"
+    done
+    log ""
+    log "   ${WHITE}[A] Install all      [N] Skip plugin installation${RESET}"
+    log ""
+    read -p "$(echo -e "${WHITE}Enter numbers separated by spaces (e.g. 1 3 5), or A/N: ${RESET}")" PLUGIN_INPUT
     PLUGIN_INPUT=${PLUGIN_INPUT:-N}
 
-    declare -A SELECTED
+    local -a picks=()
     if [[ "$PLUGIN_INPUT" =~ ^[Aa]$ ]]; then
-        for i in 1 2 3 4 5 6 7 8 9; do SELECTED[$i]=1; done
+        for i in "${!PLUGIN_SLUGS[@]}"; do picks+=("$i"); done
     elif [[ "$PLUGIN_INPUT" =~ ^[Nn]$ ]]; then
         log "${YELLOW}[⏭️]  Skipping plugin installation.${RESET}"; return
     else
         for num in $PLUGIN_INPUT; do
-            [[ "$num" =~ ^[1-9]$ ]] && SELECTED[$num]=1
+            if [[ "$num" =~ ^[0-9]+$ ]] && [ "$num" -ge 1 ] && [ "$num" -le "${#PLUGIN_SLUGS[@]}" ]; then
+                picks+=("$((num - 1))")
+            else
+                log "${YELLOW}   Ignoring invalid choice '$num'.${RESET}"
+            fi
         done
+    fi
+
+    if [ "${#picks[@]}" -eq 0 ]; then
+        log "${YELLOW}[⏭️]  No valid plugins selected. Skipping.${RESET}"; return
     fi
 
     log ""
     log "${CYAN}[🔌] Installing selected plugins into $SERVER_DIR/plugins/...${RESET}"
     log ""
-
-    # EssentialsX — Modrinth
-    [ "${SELECTED[1]}" == "1" ] && \
-        download_modrinth "essentialsx" "EssentialsX"
-
-    # LuckPerms — Modrinth
-    [ "${SELECTED[2]}" == "1" ] && \
-        download_modrinth "luckperms" "LuckPerms"
-
-    # VeinMiner — Modrinth
-    [ "${SELECTED[3]}" == "1" ] && \
-        download_modrinth "veinminer" "VeinMiner"
-
-    # ViaVersion — Modrinth
-    [ "${SELECTED[4]}" == "1" ] && \
-        download_modrinth "viaversion" "ViaVersion"
-
-    # ViaBackwards — Modrinth
-    [ "${SELECTED[5]}" == "1" ] && \
-        download_modrinth "viabackwards" "ViaBackwards"
-
-    # AuraSkills — Modrinth
-    [ "${SELECTED[6]}" == "1" ] && \
-        download_modrinth "auraskills" "AuraSkills"
-
-    # WorldEdit — Modrinth
-    [ "${SELECTED[7]}" == "1" ] && \
-        download_modrinth "worldedit" "WorldEdit"
-
-    # SkinsRestorer — Modrinth
-    [ "${SELECTED[8]}" == "1" ] && \
-        download_modrinth "skinsrestorer" "SkinsRestorer"
-
-    # TAB — Modrinth
-    [ "${SELECTED[9]}" == "1" ] && \
-        download_modrinth "tab-was-taken" "TAB"
+    for i in "${picks[@]}"; do
+        download_modrinth "${PLUGIN_SLUGS[$i]}" "${PLUGIN_TITLES[$i]}"
+    done
 
     log ""
     log "${GREEN}[✅] Plugin installation complete. Plugins saved to $SERVER_DIR/plugins/${RESET}"
@@ -497,4 +599,43 @@ install_plugins() {
 
 install_plugins
 
-# ═════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+# Start script  +  EULA  +  saved metadata for the -update checker
+# ══════════════════════════════════════════════════════════════════════════════
+log ""
+log "${CYAN}[✍️]  Creating start script...${RESET}"
+
+# jdk.incubator.vector isn't bundled in every JRE — only pass the flag if the
+# module exists, otherwise the server dies with "Module jdk.incubator.vector not found".
+VECTOR_FLAG=""
+if java --list-modules 2>/dev/null | grep -q '^jdk.incubator.vector'; then
+    VECTOR_FLAG="--add-modules=jdk.incubator.vector "
+fi
+
+cat <<EOF > "$SERVER_DIR/start.sh"
+#!/bin/bash
+cd "\$(dirname "\$0")" || exit 1
+java -Xms${RAM_MB}M -Xmx${RAM_MB}M ${VECTOR_FLAG}-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4 -XX:InitiatingHeapOccupancyPercent=15 -XX:G1MixedGCLiveThresholdPercent=90 -XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1 -Dusing.aikars.flags=https://mcflags.emc.gs -Daikars.new.flags=true -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=8M -XX:G1ReservePercent=20 -jar server.jar --nogui
+EOF
+chmod +x "$SERVER_DIR/start.sh"
+
+log "${CYAN}[📜] Accepting Minecraft EULA...${RESET}"
+echo "eula=true" > "$SERVER_DIR/eula.txt"
+
+# Persist version + build so the -update flag can check for newer PaperMC builds.
+cat <<EOF > "$SERVER_DIR/.server_info"
+SAVED_MC_VERSION=$MC_VERSION
+SAVED_BUILD=$BUILD_NUMBER
+EOF
+
+clear
+log "${GREEN}${BOLD}=================================================================================================================================="
+log "[✅] Your PaperMC server ($MC_VERSION, build $BUILD_NUMBER) is ready! 🎉${RESET}"
+log ""
+log "${WHITE}To start the server, run:${RESET}"
+log "   ${CYAN}cd $SERVER_DIR${RESET}"
+log "   ${CYAN}./start.sh${RESET}"
+log ""
+log "${WHITE}Check for newer PaperMC builds any time with:${RESET}  ${CYAN}./main.sh -update${RESET}"
+log "${MAGENTA}Enjoy your game! 🚀${RESET}"
+log "${GREEN}${BOLD}==================================================================================================================================${RESET}"

@@ -76,9 +76,17 @@ log "${BLUE}[🔧] Updating OS and installing dependencies..."
 run_command "apt-get update -y && apt-get upgrade -y"
 run_command "apt-get install sudo mc net-tools nano zip wget -y"
 run_command "apt-get install -y build-essential software-properties-common"
-run_command "add-apt-repository -y ppa:openjdk-r/ppa"
-run_command "apt-get update -y"
+# KettingLauncher (Forge hybrid) targets Java 21. Fall back to default-jdk if the
+# distro doesn't offer openjdk-21 (the openjdk-r PPA isn't published for arm64).
 run_command "apt-get install -y openjdk-21-jdk"
+if ! command -v java &>/dev/null; then
+    run_command "apt-get install -y default-jdk"
+fi
+if ! command -v java &>/dev/null; then
+    log "${RED}[❌] Failed to install Java. Exiting.${RESET}"
+    exit 1
+fi
+log "${GREEN}[✅] $(java -version 2>&1 | head -1)${RESET}"
 
 # Create Minecraft server directory
 log "${BLUE}[📁] Creating Minecraft server directory..."

@@ -59,17 +59,32 @@ Example:
 
 ## PaperMC Plugin Installer
 
-When installing PaperMC, you can optionally install these plugins automatically:
+When installing PaperMC, the installer fetches the **most popular Paper plugins from
+[Modrinth](https://modrinth.com)** that are compatible with the Minecraft version you
+chose, and shows them in an interactive menu. Pick the ones you want by number (e.g.
+`1 3 5`), enter `A` to install all, or `N` to skip.
 
-- **EssentialsX** — Core commands, economy, `/home`, `/warp`
-- **LuckPerms** — Ranks and permissions management
-- **VeinMiner** — Mine entire ore veins at once
-- **ViaVersion** — Let newer clients connect
-- **ViaBackwards** — Let older clients connect too
-- **AuraSkills** — RPG skill progression system
-- **WorldEdit** — Powerful in-game world editor
-- **SkinsRestorer** — Custom skins for offline-mode servers
-- **TAB** — Custom tab list, nametags, and scoreboards
+Each selected plugin is downloaded straight from Modrinth — the newest build that
+targets your version (falling back to the same `1.x` family, then the latest release).
+If Modrinth can't be reached, the installer falls back to a curated built-in list
+(EssentialsX, LuckPerms, ViaVersion, WorldEdit, SkinsRestorer, TAB, and more).
+
+---
+
+## Java Version
+
+The Vanilla and PaperMC installers pick the right Java runtime automatically based on
+the Minecraft version you install:
+
+| Minecraft version | Java |
+|---|---|
+| ≤ 1.16 | 8 |
+| 1.17 – 1.20.4 | 17 |
+| 1.20.5 – 1.21.x | 21 |
+| 26.1+ (calendar versions) | 25 |
+
+If your distro doesn't ship the required Java, the installer pulls it from the
+[Eclipse Temurin](https://adoptium.net) apt repository (which has arm64 builds).
 
 ---
 
@@ -80,6 +95,12 @@ After installation, the server is placed in `~/mc/`. To start it:
 ```bash
 cd ~/mc
 ./start.sh
+```
+
+For PaperMC you can later check for newer server builds with:
+
+```bash
+./main.sh -update
 ```
 
 ---
